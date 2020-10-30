@@ -40,15 +40,12 @@ int main(int argc, char *argv[]){
     CsvParser_destroy_row(row);
   }
 
-  // printf("Num cols: %d\tNum rows: %d\n", num_cols, num_rows);
-
-  float data_matrix[num_rows][num_cols];
-
   // Torch the CsvParser and start again so we can read data in.
   CsvParser_destroy(reader);
 
   reader = CsvParser_new(data_fp, delimiter, has_header_row);
 
+  float data_matrix[num_rows][num_cols];
   int row_index = 0;
   int col_index;
   while ((row = CsvParser_getRow(reader))){
