@@ -112,9 +112,7 @@ int main(int argc, char *argv[]){
 
   int row_index = 0;
   while ((row = CsvParser_getRow(reader))){
-    // printf("%d\n", row_index);
     const char **row_fields = CsvParser_getFields(row);
-    // printf("%s\n", row_fields[0]);
 
     for (int col_index = 0; col_index < num_cols; col_index++) {
       data_matrix[row_index][col_index] = atof(row_fields[col_index]);
@@ -130,7 +128,6 @@ int main(int argc, char *argv[]){
   // Given the fact that we will usually have way more rows than centers, we can
   // probably just roll a number and reroll if we already rolled it. Collisions
   // should be relatively infrequent
-  printf("Before init centers\n");
   bool collided;
   float centers[K][num_cols];
   for (int i = 0; i < K; i++) {
@@ -148,10 +145,9 @@ int main(int argc, char *argv[]){
         }
       }
 
-      vector_copy(centers[i], data_matrix[center_indices[i]], num_cols);
+      vector_copy(centers[i], data_matrix[i], num_cols);
     }
   }
-  printf("After init centers\n");
 
   printf("Initial cluster centers:\n");
   for (int i = 0; i < K; i++) {
@@ -164,6 +160,12 @@ int main(int argc, char *argv[]){
   float tot_withinss = -1;
   float last_tot_withinss;
   int num_iterations = 0;
+
+  int *cluster = malloc(num_rows * sizeof(int));
+  float *ss = malloc(num_rows * sizeof(float));
+  float *cluster_avg = malloc(num_rows * sizeof(float));
+
+  clock_t start = clock(), diff;
   while (1) {
     last_tot_withinss = tot_withinss;
 
@@ -171,7 +173,6 @@ int main(int argc, char *argv[]){
     vector_init(withinss, K);
 
     float size[K];
-    int cluster[num_rows];
 
     // Assign points to cluster centers
     for (int observation = 0; observation < num_rows; observation++) {
@@ -192,7 +193,6 @@ int main(int argc, char *argv[]){
       cluster[observation] = arg_min;
 
       // calculate within-cluster sum of squares
-      float ss[num_rows];
       vector_subtract(ss, data_matrix[observation], centers[arg_min], num_cols);
       vector_square(ss, ss, num_cols);
       float obs_local_ss = vector_sum(ss, num_cols);
@@ -213,7 +213,6 @@ int main(int argc, char *argv[]){
     // Find cluster means and reassign centers
     for (int cluster_index = 0; cluster_index < K; cluster_index++) {
       int elements_in_cluster = 0;
-      float cluster_avg[num_rows];
       vector_init(cluster_avg, num_rows);
 
       for (int element = 0; element < num_rows; element++) {
@@ -227,9 +226,9 @@ int main(int argc, char *argv[]){
       vector_copy(centers[cluster_index], cluster_avg, num_cols);
     }
   }
+  diff = clock() - start;
 
-  printf("\nNum iterations: %d\n\n", num_iterations);
-  printf("Final cluster centers:\n");
+  printf("\nFinal cluster centers:\n");
   for (int i = 0; i < K; i++) {
     for (int j = 0; j < num_cols; j++) {
       printf("%f ", centers[i][j]);
@@ -237,10 +236,18 @@ int main(int argc, char *argv[]){
     printf("\n");
   }
 
+  printf("\nNum iterations: %d\n", num_iterations);
+  int msec = diff * 1000 / CLOCKS_PER_SEC;
+  printf("Time taken %d seconds %d milliseconds\n", msec/1000, msec%1000);
+
   for (int i = 0; i < num_rows; i++) {
     free(data_matrix[i]);
   }
   free(data_matrix);
+
+  free(cluster);
+  free(ss);
+  free(cluster_avg);
 
   exit(0);
 }
