@@ -145,7 +145,7 @@ int main(int argc, char *argv[]){
         }
       }
 
-      vector_copy(centers[i], data_matrix[i], num_cols);
+      vector_copy(centers[i], data_matrix[center_indices[i]], num_cols);
     }
   }
 
