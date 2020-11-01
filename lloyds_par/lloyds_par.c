@@ -132,6 +132,7 @@ int main(int argc, char *argv[]){
   // should be relatively infrequent
   bool collided;
   double centers[K][num_cols];
+  // manual cluster centers for validation against R's stats::kmeans
   // int center_indices[3] = {12, 67, 106};
   for (int i = 0; i < K; i++) {
     int center_indices[K];
@@ -181,6 +182,7 @@ int main(int argc, char *argv[]){
 
     double size[K];
 
+#pragma omp parallel for private(observation) shared(size, cluster, withinss)
     // Assign points to cluster centers
     for (int observation = 0; observation < num_rows; observation++) {
       double min_norm = -1;
@@ -197,15 +199,17 @@ int main(int argc, char *argv[]){
         }
       }
 
-      cluster[observation] = arg_min;
-
       // calculate within-cluster sum of squares
       vector_subtract(ss, data_matrix[observation], centers[arg_min], num_cols);
       vector_square(ss, ss, num_cols);
       double obs_local_ss = vector_sum(ss, num_cols);
 
-      withinss[arg_min] += obs_local_ss;
-      size[arg_min]++;
+      # pragma omp critical
+      {
+        cluster[observation] = arg_min;
+        withinss[arg_min] += obs_local_ss;
+        size[arg_min]++;
+      }
     }
 
     // total within-cluster sum of squares
@@ -245,7 +249,7 @@ int main(int argc, char *argv[]){
 
   // printf("\nNum iterations: %d\n", num_iterations);
   int msec = diff * 1000 / CLOCKS_PER_SEC;
-  printf("Time taken %d seconds %d milliseconds\n", msec/1000, msec%1000);
+  printf("Time with %d: %d seconds %d milliseconds\n", K, msec/1000, msec%1000);
 
   for (int i = 0; i < num_rows; i++) {
     free(data_matrix[i]);

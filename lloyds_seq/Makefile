@@ -3,7 +3,7 @@ CFLAGS = -Wall
 LFLAGS = -lm
 OPTFLAGS = -fopenmp -pthread
 
-.phony = clean run
+.phony = clean run time
 
 lloyds_seq:
 	${CC} ${CFLAGS} lloyds_seq.c csvparser.c -o lloyds_seq ${LFLAGS}
@@ -14,3 +14,9 @@ run: lloyds_seq
 
 clean:
 	rm lloyds_seq
+
+time: lloyds_seq
+	./lloyds_seq 5 "../data/pairs.csv" "," 0 0
+	./lloyds_seq 10 "../data/pairs.csv" "," 0 0
+	./lloyds_seq 15 "../data/pairs.csv" "," 0 0
+	./lloyds_seq 25 "../data/pairs.csv" "," 0 0
