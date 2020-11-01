@@ -6,48 +6,48 @@
 
 #include "csvparser.h"
 
-void vector_init(float *a, int length) {
+void vector_init(double *a, int length) {
   for (int i = 0; i < length; i++) {
     a[i] = 0;
   }
 }
 
-void vector_copy(float *dst, float *src, int length) {
+void vector_copy(double *dst, double *src, int length) {
   for (int i = 0; i < length; i++) {
     dst[i] = src[i];
   }
 }
 
-void vector_subtract(float *dst, float *a, float *b, int length) {
+void vector_subtract(double *dst, double *a, double *b, int length) {
   for (int i = 0; i < length; i++) {
     dst[i] = a[i] - b[i];
   }
 }
 
-void vector_add(float *dst, float *a, float *b, int length) {
+void vector_add(double *dst, double *a, double *b, int length) {
   for (int i = 0; i < length; i++) {
     dst[i] = a[i] + b[i];
   }
 }
 
-void vector_elementwise_avg(float *dst, float *a, int denominator, int length) {
+void vector_elementwise_avg(double *dst, double *a, int denominator, int length) {
   for (int i = 0; i < length; i++) {
     dst[i] = a[i] / denominator;
   }
 }
 
-float vector_length(float *a, int length) {
-  float vec_length = 0;
+double vector_L2_norm(double *a, int length) {
+  double vec_length = 0;
 
   for (int i = 0; i < length; i++) {
     vec_length += a[i] * a[i];
   }
 
-  return sqrt(vec_length);
+  return vec_length;
 }
 
-float vector_sum(float *a, int length) {
-  float sum = 0;
+double vector_sum(double *a, int length) {
+  double sum = 0;
 
   for (int i = 0; i < length; i ++) {
     sum += a[i];
@@ -56,7 +56,7 @@ float vector_sum(float *a, int length) {
   return sum;
 }
 
-void vector_square(float *dst, float *a, int length) {
+void vector_square(double *dst, double *a, int length) {
   for (int i = 0; i < length; i++) {
     dst[i] = a[i] * a[i];
   }
@@ -104,9 +104,9 @@ int main(int argc, char *argv[]){
 
   reader = CsvParser_new(data_fp, delimiter, has_header_row);
 
-  float **data_matrix = malloc(num_rows * sizeof(float *));
+  double **data_matrix = malloc(num_rows * sizeof(double *));
   for (int i = 0; i < num_rows; i++) {
-    data_matrix[i] = malloc(num_cols * sizeof(float));
+    data_matrix[i] = malloc(num_cols * sizeof(double));
   }
 
 
@@ -129,7 +129,8 @@ int main(int argc, char *argv[]){
   // probably just roll a number and reroll if we already rolled it. Collisions
   // should be relatively infrequent
   bool collided;
-  float centers[K][num_cols];
+  double centers[K][num_cols];
+  // int center_indices[3] = {12, 67, 106};
   for (int i = 0; i < K; i++) {
     int center_indices[K];
     collided = true;
@@ -149,6 +150,10 @@ int main(int argc, char *argv[]){
     }
   }
 
+  // for (int i = 0; i < K; i ++) {
+  //   vector_copy(centers[i], data_matrix[center_indices[i]], num_cols);
+  // }
+
   printf("Initial cluster centers:\n");
   for (int i = 0; i < K; i++) {
     for (int j = 0; j < num_cols; j++) {
@@ -157,33 +162,33 @@ int main(int argc, char *argv[]){
     printf("\n");
   }
 
-  float tot_withinss = -1;
-  float last_tot_withinss;
+  double tot_withinss = -1;
+  double last_tot_withinss;
   int num_iterations = 0;
 
   int *cluster = malloc(num_rows * sizeof(int));
-  float *ss = malloc(num_rows * sizeof(float));
-  float *cluster_avg = malloc(num_rows * sizeof(float));
+  double *ss = malloc(num_rows * sizeof(double));
+  double *cluster_avg = malloc(num_rows * sizeof(double));
 
   clock_t start = clock(), diff;
   while (1) {
     last_tot_withinss = tot_withinss;
 
-    float withinss[K];
+    double withinss[K];
     vector_init(withinss, K);
 
-    float size[K];
+    double size[K];
 
     // Assign points to cluster centers
     for (int observation = 0; observation < num_rows; observation++) {
-      float min_norm = -1;
+      double min_norm = -1;
       int arg_min;
 
       for (int center = 0; center < K; center++) {
-        float diff[num_cols];
+        double diff[num_cols];
 
         vector_subtract(diff, data_matrix[observation], centers[center], num_cols);
-        float local_norm = vector_length(diff, num_cols);
+        double local_norm = vector_L2_norm(diff, num_cols);
         if ((min_norm == -1) || (local_norm < min_norm)) {
           arg_min = center;
           min_norm = local_norm;
@@ -195,7 +200,7 @@ int main(int argc, char *argv[]){
       // calculate within-cluster sum of squares
       vector_subtract(ss, data_matrix[observation], centers[arg_min], num_cols);
       vector_square(ss, ss, num_cols);
-      float obs_local_ss = vector_sum(ss, num_cols);
+      double obs_local_ss = vector_sum(ss, num_cols);
 
       withinss[arg_min] += obs_local_ss;
       size[arg_min]++;
@@ -203,12 +208,12 @@ int main(int argc, char *argv[]){
 
     // total within-cluster sum of squares
     tot_withinss = vector_sum(withinss, num_cols);
-    num_iterations++;
 
     // break out of loop if total within-cluster sum of squares has converged
     if (tot_withinss == last_tot_withinss) {
       break;
     }
+    num_iterations++;
 
     // Find cluster means and reassign centers
     for (int cluster_index = 0; cluster_index < K; cluster_index++) {
