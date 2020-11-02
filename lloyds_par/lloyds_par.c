@@ -170,10 +170,8 @@ int main(int argc, char *argv[]){
 
       if (cluster[observation] != new_center) {
         changes = true;
-        #pragma omp critical
-        {
-          cluster[observation] = new_center;
-        }
+        #pragma omp atomic write
+        cluster[observation] = new_center;
       }
     }
 
