@@ -138,6 +138,7 @@ int main(int argc, char *argv[]){
   int num_iterations = 0;
 
   int *cluster = malloc(num_rows * sizeof(int));
+  // TODO: num_cols?
   double *cluster_avg = malloc(num_rows * sizeof(double));
 
   bool changes;
@@ -176,7 +177,7 @@ int main(int argc, char *argv[]){
       }
     }
 
-    // If we didn't change what cluster any data points belong to, leave
+    // If we didn't change any cluster assignments, we're at convergence
     if (!changes) {
       break;
     }
@@ -184,11 +185,16 @@ int main(int argc, char *argv[]){
     num_iterations++;
 
     // Find cluster means and reassign centers
-    for (int cluster_index = 0; cluster_index < K; cluster_index++) {
-      int elements_in_cluster = 0;
+    int cluster_index, element, elements_in_cluster;
+    #pragma omp parallel for private(cluster_index, element, elements_in_cluster) shared(num_rows, cluster, data_matrix, K)
+    for (cluster_index = 0; cluster_index < K; cluster_index++) {
+      elements_in_cluster = 0;
+      // TODO: num_cols?
       vector_init(cluster_avg, num_rows);
 
-      for (int element = 0; element < num_rows; element++) {
+      // 
+      // #pragma omp parallel for private(element) shared(num_rows, cluster, data_matrix, cluster_index)
+      for (element = 0; element < num_rows; element++) {
         if (cluster[element] == cluster_index) {
           vector_add(cluster_avg, cluster_avg, data_matrix[element], num_cols);
           elements_in_cluster++;
