@@ -3,6 +3,7 @@
 #include <math.h>
 #include <time.h>
 #include <stdbool.h>
+#include <omp.h>
 
 #include "csvparser.h"
 
@@ -157,13 +158,13 @@ int main(int argc, char *argv[]){
   //   vector_copy(centers[i], data_matrix[center_indices[i]], num_cols);
   // }
 
-  // printf("Initial cluster centers:\n");
-  // for (int i = 0; i < K; i++) {
-  //   for (int j = 0; j < num_cols; j++) {
-  //     printf("%f ", centers[i][j]);
-  //   }
-  //   printf("\n");
-  // }
+  printf("Initial cluster centers:\n");
+  for (int i = 0; i < K; i++) {
+    for (int j = 0; j < num_cols; j++) {
+      printf("%f ", centers[i][j]);
+    }
+    printf("\n");
+  }
 
   double tot_withinss = -1;
   double last_tot_withinss;
@@ -176,21 +177,25 @@ int main(int argc, char *argv[]){
   clock_t start = clock(), diff;
   while (1) {
     last_tot_withinss = tot_withinss;
-
     double withinss[K];
     vector_init(withinss, K);
+    int observation, cluster_index;
 
+    // TODO: use or remove
     double size[K];
 
-#pragma omp parallel for private(observation) shared(size, cluster, withinss)
+    double min_norm;
+    double diff[num_cols];
+    int arg_min = -1;
+    int center;
+    #pragma omp parallel for private(observation) \
+        shared(data_matrix, size, cluster, withinss, num_rows, K, centers, tot_withinss, last_tot_withinss)
     // Assign points to cluster centers
-    for (int observation = 0; observation < num_rows; observation++) {
-      double min_norm = -1;
-      int arg_min;
-
-      for (int center = 0; center < K; center++) {
-        double diff[num_cols];
-
+    for (observation = 0; observation < num_rows; observation++) {
+      min_norm = -1;
+      // printf("\tHere %d\n", observation);
+      for (center = 0; center < K; center++) {
+        // printf("Inner %d\n", center);
         vector_subtract(diff, data_matrix[observation], centers[center], num_cols);
         double local_norm = vector_L2_norm(diff, num_cols);
         if ((min_norm == -1) || (local_norm < min_norm)) {
@@ -215,6 +220,7 @@ int main(int argc, char *argv[]){
     // total within-cluster sum of squares
     tot_withinss = vector_sum(withinss, num_cols);
 
+    printf("Last: %f\tCurrent: %f\n", last_tot_withinss, tot_withinss);
     // break out of loop if total within-cluster sum of squares has converged
     if (tot_withinss == last_tot_withinss) {
       break;
@@ -222,7 +228,7 @@ int main(int argc, char *argv[]){
     num_iterations++;
 
     // Find cluster means and reassign centers
-    for (int cluster_index = 0; cluster_index < K; cluster_index++) {
+    for (cluster_index = 0; cluster_index < K; cluster_index++) {
       int elements_in_cluster = 0;
       vector_init(cluster_avg, num_rows);
 
@@ -247,7 +253,7 @@ int main(int argc, char *argv[]){
   //   printf("\n");
   // }
 
-  // printf("\nNum iterations: %d\n", num_iterations);
+  printf("\nNum iterations: %d\n", num_iterations);
   int msec = diff * 1000 / CLOCKS_PER_SEC;
   printf("Time with %d: %d seconds %d milliseconds\n", K, msec/1000, msec%1000);
 

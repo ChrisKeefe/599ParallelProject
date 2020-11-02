@@ -173,16 +173,16 @@ int main(int argc, char *argv[]){
   double *cluster_avg = malloc(num_rows * sizeof(double));
 
   clock_t start = clock(), diff;
+  int observation;
   while (1) {
     last_tot_withinss = tot_withinss;
-
     double withinss[K];
     vector_init(withinss, K);
 
     double size[K];
 
     // Assign points to cluster centers
-    for (int observation = 0; observation < num_rows; observation++) {
+    for (observation = 0; observation < num_rows; observation++) {
       double min_norm = -1;
       int arg_min;
 
@@ -211,6 +211,7 @@ int main(int argc, char *argv[]){
     // total within-cluster sum of squares
     tot_withinss = vector_sum(withinss, num_cols);
 
+    printf("Last: %f\tCurrent: %f\n", last_tot_withinss, tot_withinss);
     // break out of loop if total within-cluster sum of squares has converged
     if (tot_withinss == last_tot_withinss) {
       break;

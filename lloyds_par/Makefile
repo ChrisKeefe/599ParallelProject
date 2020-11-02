@@ -1,11 +1,11 @@
 CFLAGS = -Wall
 LFLAGS = -lm
-OPTFLAGS = -fopenmp -pthread
+OPTFLAGS = -fopenmp
 
 .phony = clean run time
 
 lloyds_par:
-	${CC} ${CFLAGS} lloyds_par.c csvparser.c -o lloyds_par ${LFLAGS}
+	${CC} ${CFLAGS} lloyds_par.c csvparser.c -o lloyds_par ${LFLAGS} ${OPTFLAGS}
 
 # Use like this: `make run K=5`
 run: lloyds_par
