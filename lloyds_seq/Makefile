@@ -6,7 +6,7 @@ OPTFLAGS = -fopenmp -pthread
 .phony = clean run time
 
 lloyds_seq:
-	${CC} ${CFLAGS} lloyds_seq.c csvparser.c -o lloyds_seq ${LFLAGS}
+	${CC} ${CFLAGS} lloyds_seq.c csvparser.c -o lloyds_seq ${LFLAGS} ${OPTFLAGS}
 
 # Use like this: `make run K=5`
 run: lloyds_seq

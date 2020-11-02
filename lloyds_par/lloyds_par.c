@@ -19,12 +19,6 @@ void vector_copy(double *dst, double *src, int length) {
   }
 }
 
-void vector_subtract(double *dst, double *a, double *b, int length) {
-  for (int i = 0; i < length; i++) {
-    dst[i] = a[i] - b[i];
-  }
-}
-
 void vector_add(double *dst, double *a, double *b, int length) {
   for (int i = 0; i < length; i++) {
     dst[i] = a[i] + b[i];
@@ -34,32 +28,6 @@ void vector_add(double *dst, double *a, double *b, int length) {
 void vector_elementwise_avg(double *dst, double *a, int denominator, int length) {
   for (int i = 0; i < length; i++) {
     dst[i] = a[i] / denominator;
-  }
-}
-
-double vector_L2_norm(double *a, int length) {
-  double vec_length = 0;
-
-  for (int i = 0; i < length; i++) {
-    vec_length += a[i] * a[i];
-  }
-
-  return vec_length;
-}
-
-double vector_sum(double *a, int length) {
-  double sum = 0;
-
-  for (int i = 0; i < length; i ++) {
-    sum += a[i];
-  }
-
-  return sum;
-}
-
-void vector_square(double *dst, double *a, int length) {
-  for (int i = 0; i < length; i++) {
-    dst[i] = a[i] * a[i];
   }
 }
 
@@ -133,8 +101,6 @@ int main(int argc, char *argv[]){
   // should be relatively infrequent
   bool collided;
   double centers[K][num_cols];
-  // manual cluster centers for validation against R's stats::kmeans
-  // int center_indices[3] = {12, 67, 106};
   for (int i = 0; i < K; i++) {
     int center_indices[K];
     collided = true;
@@ -154,6 +120,8 @@ int main(int argc, char *argv[]){
     }
   }
 
+  // These are for testing against R with iris data
+  // int center_indices[3] = {12, 67, 106};
   // for (int i = 0; i < K; i ++) {
   //   vector_copy(centers[i], data_matrix[center_indices[i]], num_cols);
   // }
@@ -165,70 +133,59 @@ int main(int argc, char *argv[]){
     }
     printf("\n");
   }
+  printf("\n");
 
-  double tot_withinss = -1;
-  double last_tot_withinss;
   int num_iterations = 0;
 
   int *cluster = malloc(num_rows * sizeof(int));
   double *ss = malloc(num_rows * sizeof(double));
   double *cluster_avg = malloc(num_rows * sizeof(double));
 
-  clock_t start = clock(), diff;
+  bool changes;
+
+  double tstart = omp_get_wtime();
   while (1) {
-    last_tot_withinss = tot_withinss;
-    double withinss[K];
-    vector_init(withinss, K);
-    int observation, cluster_index;
-
-    // TODO: use or remove
-    double size[K];
-
-    double min_norm;
-    double diff[num_cols];
-    int arg_min = -1;
-    int center;
-    #pragma omp parallel for private(observation) \
-        shared(data_matrix, size, cluster, withinss, num_rows, K, centers, tot_withinss, last_tot_withinss)
     // Assign points to cluster centers
-    for (observation = 0; observation < num_rows; observation++) {
-      min_norm = -1;
-      // printf("\tHere %d\n", observation);
-      for (center = 0; center < K; center++) {
-        // printf("Inner %d\n", center);
-        vector_subtract(diff, data_matrix[observation], centers[center], num_cols);
-        double local_norm = vector_L2_norm(diff, num_cols);
-        if ((min_norm == -1) || (local_norm < min_norm)) {
-          arg_min = center;
-          min_norm = local_norm;
+    changes = false;
+
+    #pragma omp parallel for
+    for (int observation = 0; observation < num_rows; observation++) {
+      int new_center;
+      double best_diff = INFINITY;
+
+      for (int center = 0; center < K; center++) {
+        double current_diff = 0;
+        double tmp;
+
+        for (int col = 0; col < num_cols; col++) {
+          tmp = data_matrix[observation][col] - centers[center][col];
+          current_diff += tmp * tmp;
+        }
+
+        if (current_diff < best_diff) {
+          best_diff = current_diff;
+          new_center = center;
         }
       }
 
-      // calculate within-cluster sum of squares
-      vector_subtract(ss, data_matrix[observation], centers[arg_min], num_cols);
-      vector_square(ss, ss, num_cols);
-      double obs_local_ss = vector_sum(ss, num_cols);
-
-      # pragma omp critical
-      {
-        cluster[observation] = arg_min;
-        withinss[arg_min] += obs_local_ss;
-        size[arg_min]++;
+      if (cluster[observation] != new_center) {
+        changes = true;
+        #pragma omp critical
+        {
+          cluster[observation] = new_center;
+        }
       }
     }
 
-    // total within-cluster sum of squares
-    tot_withinss = vector_sum(withinss, num_cols);
-
-    printf("Last: %f\tCurrent: %f\n", last_tot_withinss, tot_withinss);
-    // break out of loop if total within-cluster sum of squares has converged
-    if (tot_withinss == last_tot_withinss) {
+    // If we didn't change what cluster any data points belong to, leave
+    if (!changes) {
       break;
     }
+
     num_iterations++;
 
     // Find cluster means and reassign centers
-    for (cluster_index = 0; cluster_index < K; cluster_index++) {
+    for (int cluster_index = 0; cluster_index < K; cluster_index++) {
       int elements_in_cluster = 0;
       vector_init(cluster_avg, num_rows);
 
@@ -243,19 +200,18 @@ int main(int argc, char *argv[]){
       vector_copy(centers[cluster_index], cluster_avg, num_cols);
     }
   }
-  diff = clock() - start;
+  double tend = omp_get_wtime();
 
-  // printf("\nFinal cluster centers:\n");
-  // for (int i = 0; i < K; i++) {
-  //   for (int j = 0; j < num_cols; j++) {
-  //     printf("%f ", centers[i][j]);
-  //   }
-  //   printf("\n");
-  // }
+  printf("\nFinal cluster centers:\n");
+  for (int i = 0; i < K; i++) {
+    for (int j = 0; j < num_cols; j++) {
+      printf("%f ", centers[i][j]);
+    }
+    printf("\n");
+  }
 
   printf("\nNum iterations: %d\n", num_iterations);
-  int msec = diff * 1000 / CLOCKS_PER_SEC;
-  printf("Time with %d: %d seconds %d milliseconds\n", K, msec/1000, msec%1000);
+  printf("Time taken for %d clusters: %f seconds\n", K, tend - tstart);
 
   for (int i = 0; i < num_rows; i++) {
     free(data_matrix[i]);
