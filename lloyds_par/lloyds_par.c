@@ -138,7 +138,6 @@ int main(int argc, char *argv[]){
   int num_iterations = 0;
 
   int *cluster = malloc(num_rows * sizeof(int));
-  double *ss = malloc(num_rows * sizeof(double));
   double *cluster_avg = malloc(num_rows * sizeof(double));
 
   bool changes;
@@ -217,7 +216,6 @@ int main(int argc, char *argv[]){
   free(data_matrix);
 
   free(cluster);
-  free(ss);
   free(cluster_avg);
 
   exit(0);
