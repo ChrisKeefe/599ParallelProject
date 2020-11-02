@@ -147,18 +147,20 @@ int main(int argc, char *argv[]){
     // Assign points to cluster centers
     changes = false;
 
-    #pragma omp parallel for
-    for (int observation = 0; observation < num_rows; observation++) {
-      int new_center;
-      double best_diff = INFINITY;
+    int center, observation, new_center, col;
+    double idx_diff, current_diff, best_diff;
+    #pragma omp parallel for \
+      private(center, observation, idx_diff, current_diff, best_diff, new_center, col) \
+      shared(num_rows, K, data_matrix, centers)
+    for (observation = 0; observation < num_rows; observation++) {
+      best_diff = INFINITY;
 
-      for (int center = 0; center < K; center++) {
-        double current_diff = 0;
-        double tmp;
+      for (center = 0; center < K; center++) {
+        current_diff = 0;
 
-        for (int col = 0; col < num_cols; col++) {
-          tmp = data_matrix[observation][col] - centers[center][col];
-          current_diff += tmp * tmp;
+        for (col = 0; col < num_cols; col++) {
+          idx_diff = data_matrix[observation][col] - centers[center][col];
+          current_diff += idx_diff * idx_diff;
         }
 
         if (current_diff < best_diff) {
