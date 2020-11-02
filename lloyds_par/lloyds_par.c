@@ -147,6 +147,7 @@ int main(int argc, char *argv[]){
     // Assign points to cluster centers
     changes = false;
 
+    #pragma omp parallel for
     for (int observation = 0; observation < num_rows; observation++) {
       int new_center;
       double best_diff = INFINITY;
@@ -168,6 +169,7 @@ int main(int argc, char *argv[]){
 
       if (cluster[observation] != new_center) {
         changes = true;
+        #pragma omp atomic write
         cluster[observation] = new_center;
       }
     }
