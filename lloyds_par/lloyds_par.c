@@ -182,15 +182,15 @@ int main(int argc, char *argv[]){
 
     // Find cluster means and reassign centers
     int cluster_index, element, elements_in_cluster;
-    #pragma omp parallel for private(cluster_index, element, elements_in_cluster) \
+    double cluster_mean[num_cols];
+    #pragma omp parallel for \
+      private(cluster_index, element, elements_in_cluster, cluster_mean) \
       shared(num_rows, cluster, data_matrix, K)
     for (cluster_index = 0; cluster_index < K; cluster_index++) {
-      double *cluster_mean = malloc(num_cols * sizeof(double));
       elements_in_cluster = 0;
       vector_init(cluster_mean, num_cols);
 
       // Aggregate in-cluster values we can use to take the cluster mean
-      // #pragma omp parallel for private(element) shared(num_rows, cluster, data_matrix, cluster_index)
       for (element = 0; element < num_rows; element++) {
         if (cluster[element] == cluster_index) {
           vector_add(cluster_mean, cluster_mean, data_matrix[element], num_cols);
@@ -198,9 +198,9 @@ int main(int argc, char *argv[]){
         }
       }
 
+      // Finish calculating cluster mean, and overwrite centers with the new value
       vector_elementwise_avg(cluster_mean, cluster_mean, elements_in_cluster, num_cols);
       vector_copy(centers[cluster_index], cluster_mean, num_cols);
-      free(cluster_mean);
     }
   }
   double tend = omp_get_wtime();
