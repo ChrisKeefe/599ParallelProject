@@ -138,7 +138,7 @@ int main(int argc, char *argv[]){
   int num_iterations = 0;
 
   int *cluster = malloc(num_rows * sizeof(int));
-  double *cluster_avg = malloc(num_rows * sizeof(double));
+  double *cluster_mean = malloc(num_cols * sizeof(double));
 
   bool changes;
 
@@ -172,7 +172,7 @@ int main(int argc, char *argv[]){
       }
     }
 
-    // If we didn't change what cluster any data points belong to, leave
+    // If we didn't change any cluster assignments, we've reached convergence
     if (!changes) {
       break;
     }
@@ -182,17 +182,17 @@ int main(int argc, char *argv[]){
     // Find cluster means and reassign centers
     for (int cluster_index = 0; cluster_index < K; cluster_index++) {
       int elements_in_cluster = 0;
-      vector_init(cluster_avg, num_rows);
+      vector_init(cluster_mean, num_cols);
 
       for (int element = 0; element < num_rows; element++) {
         if (cluster[element] == cluster_index) {
-          vector_add(cluster_avg, cluster_avg, data_matrix[element], num_cols);
+          vector_add(cluster_mean, cluster_mean, data_matrix[element], num_cols);
           elements_in_cluster++;
         }
       }
 
-      vector_elementwise_avg(cluster_avg, cluster_avg, elements_in_cluster, num_cols);
-      vector_copy(centers[cluster_index], cluster_avg, num_cols);
+      vector_elementwise_avg(cluster_mean, cluster_mean, elements_in_cluster, num_cols);
+      vector_copy(centers[cluster_index], cluster_mean, num_cols);
     }
   }
   double tend = omp_get_wtime();
@@ -214,7 +214,7 @@ int main(int argc, char *argv[]){
   free(data_matrix);
 
   free(cluster);
-  free(cluster_avg);
+  free(cluster_mean);
 
   exit(0);
 }
