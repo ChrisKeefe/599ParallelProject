@@ -31,6 +31,22 @@ void vector_elementwise_avg(double *dst, double *a, int denominator, int length)
   }
 }
 
+double vector_L2_norm(double *a, int length) {
+  double vec_norm = 0;
+
+  for (int i = 0; i < length; i++) {
+    vec_norm += a[i] * a[i];
+  }
+
+  return vec_norm;
+}
+
+void vector_sub(double *dst, double *a, double *b, int length) {
+  for (int i = 0; i < length; i++) {
+    dst[i] = a[i] - b[i];
+  }
+}
+
 // Program should take K, a data set (.csv), a delimiter,
 // a binary flag data_contains_header, and a binary flag to drop labels
 int main(int argc, char *argv[]){
@@ -39,6 +55,7 @@ int main(int argc, char *argv[]){
   srand(111);
   CsvParser *reader;
   CsvRow *row;
+  int i, j;
 
   if(argc != 6){
       printf("Incorrect number of args. Should be 5, received %d\n", argc - 1);
@@ -76,7 +93,7 @@ int main(int argc, char *argv[]){
   reader = CsvParser_new(data_fp, delimiter, has_header_row);
 
   double **data_matrix = malloc(num_rows * sizeof(double *));
-  for (int i = 0; i < num_rows; i++) {
+  for (i = 0; i < num_rows; i++) {
     data_matrix[i] = malloc(num_cols * sizeof(double));
   }
 
@@ -101,7 +118,7 @@ int main(int argc, char *argv[]){
   // should be relatively infrequent
   bool collided;
   double centers[K][num_cols];
-  for (int i = 0; i < K; i++) {
+  for (i = 0; i < K; i++) {
     int center_indices[K];
     collided = true;
 
@@ -109,7 +126,7 @@ int main(int argc, char *argv[]){
       center_indices[i] = rand() % num_rows;
       collided = false;
 
-      for (int j = 0; j < i; j++) {
+      for (j = 0; j < i; j++) {
         if (center_indices[j] == center_indices[i]) {
           collided = true;
           break;
@@ -122,13 +139,13 @@ int main(int argc, char *argv[]){
 
   // These are for testing against R with iris data
   // int center_indices[3] = {12, 67, 106};
-  // for (int i = 0; i < K; i ++) {
+  // for (i = 0; i < K; i ++) {
   //   vector_copy(centers[i], data_matrix[center_indices[i]], num_cols);
   // }
 
   printf("Initial cluster centers:\n");
-  for (int i = 0; i < K; i++) {
-    for (int j = 0; j < num_cols; j++) {
+  for (i = 0; i < K; i++) {
+    for (j = 0; j < num_cols; j++) {
       printf("%f ", centers[i][j]);
     }
     printf("\n");
@@ -136,19 +153,36 @@ int main(int argc, char *argv[]){
   printf("\n");
 
   int num_iterations = 0;
-  int *cluster = malloc(num_rows * sizeof(int));
+  int *clusterings = malloc(num_rows * sizeof(int));
+  double *l_bounds = calloc(num_rows * K, sizeof(double));
+  double *u_bounds = malloc(num_rows * K * sizeof(double));
+  double *ctr_ctr_dists = malloc(K * K * sizeof(double));
   bool changes;
 
   double tstart = omp_get_wtime();
   // TODO: implement algo here
 
+  double tmp_diff[num_cols];
+  for (i = 0; i < K; i++) {
+    for (j = 0; j < K; j++) {
+      vector_sub(tmp_diff, centers[i], centers[j], num_cols);
+      ctr_ctr_dists[j + i * K] = vector_L2_norm(tmp_diff, num_cols);
+    }
+  }
 
-  
   double tend = omp_get_wtime();
 
+  printf("\nCenter-center distances:\n");
+  for (i = 0; i < K; i++) {
+    for (j = 0; j < num_cols; j++) {
+      printf("%f ", ctr_ctr_dists[j + i * K]);
+    }
+    printf("\n");
+  }
+
   printf("\nFinal cluster centers:\n");
-  for (int i = 0; i < K; i++) {
-    for (int j = 0; j < num_cols; j++) {
+  for (i = 0; i < K; i++) {
+    for (j = 0; j < num_cols; j++) {
       printf("%f ", centers[i][j]);
     }
     printf("\n");
@@ -157,11 +191,11 @@ int main(int argc, char *argv[]){
   printf("\nNum iterations: %d\n", num_iterations);
   printf("Time taken for %d clusters: %f seconds\n", K, tend - tstart);
 
-  for (int i = 0; i < num_rows; i++) {
+  for (i = 0; i < num_rows; i++) {
     free(data_matrix[i]);
   }
 
   free(data_matrix);
-  free(cluster);
+  free(clusterings);
   exit(0);
 }
