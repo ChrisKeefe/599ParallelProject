@@ -136,10 +136,8 @@ int main(int argc, char *argv[]){
   printf("\n");
 
   int num_iterations = 0;
-
   int *cluster = malloc(num_rows * sizeof(int));
   double *cluster_mean = malloc(num_cols * sizeof(double));
-
   bool changes;
 
   double tstart = omp_get_wtime();

@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -Wall
 LFLAGS = -lm
-OPTFLAGS = -fopenmp -pthread
+OPTFLAGS = -fopenmp
 
 .phony = clean run time
 
