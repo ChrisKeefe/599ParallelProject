@@ -153,20 +153,69 @@ int main(int argc, char *argv[]){
   printf("\n");
 
   int num_iterations = 0;
-  int *clusterings = malloc(num_rows * sizeof(int));
+  int *clusterings = calloc(num_rows, sizeof(int));
   double *l_bounds = calloc(num_rows * K, sizeof(double));
-  double *u_bounds = malloc(num_rows * K * sizeof(double));
+  double *u_bounds = calloc(num_rows, sizeof(double));
   double *ctr_ctr_dists = malloc(K * K * sizeof(double));
+  // These need better names
+  double s[K];
+  bool *r = calloc(num_rows, sizeof(bool));
   bool changes;
 
   double tstart = omp_get_wtime();
   // TODO: implement algo here
 
+  // Check each point against all centers where d(c1, c2) < 2 * upper_bound)
+  int this_ctr, this_pt;
+  // we assume each point is assigned to center 0
+  // we check distance from center 1, 2, etc to current center against upper bound
+  // (Upper bound is the distance to the best-center-so-far)
   double tmp_diff[num_cols];
-  for (i = 0; i < K; i++) {
-    for (j = 0; j < K; j++) {
-      vector_sub(tmp_diff, centers[i], centers[j], num_cols);
-      ctr_ctr_dists[j + i * K] = vector_L2_norm(tmp_diff, num_cols);
+  double min_diff = INFINITY;
+  for (this_pt = 0; this_pt < num_rows; this_pt++) {
+    // find the distance from this point to center_0
+    vector_sub(tmp_diff, centers[0], data_matrix[this_pt], num_cols);
+    u_bounds[this_pt] = vector_L2_norm(tmp_diff, num_cols);
+    l_bounds[this_pt * K + 0];
+
+    for (this_ctr = 1; this_ctr < K; this_ctr++) {
+      if (ctr_ctr_dists[clusterings[this_pt] + this_ctr * K] < 2 * u_bounds[this_pt]){
+        vector_sub(tmp_diff, centers[this_ctr], data_matrix[this_pt], num_cols);
+
+        // Capture the lower bound, assign a new clustering & u_bound if closer
+        l_bounds[this_pt * K + this_ctr] = vector_L2_norm(tmp_diff, num_cols);
+
+        if (l_bounds[this_pt * K + this_ctr] < u_bounds[this_pt]) {
+          clusterings[this_pt] = this_ctr;
+          u_bounds[this_pt] = l_bounds[this_pt * K + this_ctr];
+        }
+      }
+    }
+  }
+
+  bool r = false;
+  while(1) {
+    // Calculate initial center-center distances
+    // TODO: reduce number of distance calculations
+    for (i = 0; i < K; i++) {
+      for (j = 0; j < K; j++) {
+        vector_sub(tmp_diff, centers[i], centers[j], num_cols);
+        ctr_ctr_dists[i * K + j] = vector_L2_norm(tmp_diff, num_cols);
+
+        if (ctr_ctr_dists[i * K + j] < min_diff) {
+          min_diff = ctr_ctr_dists[i * K + j];
+        }
+      }
+
+      s[i] = min_diff / 2;
+    }
+  
+    for (this_pt = 0; this_pt < num_rows; this_pt++) {
+      if (u_bounds[this_pt] > s[clusterings[this_pt]]) {
+        for(this_ctr = 0; this_ctr < K; this_ctr++) {
+
+        }
+      }
     }
   }
 
