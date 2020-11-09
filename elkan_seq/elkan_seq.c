@@ -123,30 +123,30 @@ int main(int argc, char *argv[]){
   bool collided;
   double prev_centers[K][num_cols];
   double centers[K][num_cols];
-  // for (i = 0; i < K; i++) {
-  //   int center_indices[K];
-  //   collided = true;
+  for (i = 0; i < K; i++) {
+    int center_indices[K];
+    collided = true;
 
-  //   while (collided) {
-  //     center_indices[i] = rand() % num_rows;
-  //     collided = false;
+    while (collided) {
+      center_indices[i] = rand() % num_rows;
+      collided = false;
 
-  //     for (j = 0; j < i; j++) {
-  //       if (center_indices[j] == center_indices[i]) {
-  //         collided = true;
-  //         break;
-  //       }
-  //     }
+      for (j = 0; j < i; j++) {
+        if (center_indices[j] == center_indices[i]) {
+          collided = true;
+          break;
+        }
+      }
 
-  //     vector_copy(centers[i], data_matrix[center_indices[i]], num_cols);
-  //   }
-  // }
+      vector_copy(centers[i], data_matrix[center_indices[i]], num_cols);
+    }
+  }
 
   // These are for testing against R with iris data
-  int center_indices[3] = {12, 67, 106};
-  for (i = 0; i < K; i ++) {
-    vector_copy(centers[i], data_matrix[center_indices[i]], num_cols);
-  }
+  // int center_indices[3] = {12, 67, 106};
+  // for (i = 0; i < K; i ++) {
+  //   vector_copy(centers[i], data_matrix[center_indices[i]], num_cols);
+  // }
 
   printf("Initial cluster centers:\n");
   for (i = 0; i < K; i++) {

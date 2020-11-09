@@ -9,7 +9,7 @@ elkan_seq:
 
 # Use like this: `make run K=5`
 run: elkan_seq
-	./elkan_seq $k $K "../data/iris.csv" "," 1 1
+	./elkan_seq $k $K "../data/pairs.csv" "," 0 0
 
 clean:
 	rm elkan_seq
