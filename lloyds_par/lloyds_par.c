@@ -39,8 +39,9 @@ int main(int argc, char *argv[]){
   srand(111);
   CsvParser *reader;
   CsvRow *row;
+  int i,j;
 
-  if(argc != 6){
+  if(argc < 6){
       printf("Incorrect number of args. Should be 5, received %d\n", argc - 1);
       exit(1);
   }
@@ -101,30 +102,32 @@ int main(int argc, char *argv[]){
   // should be relatively infrequent
   bool collided;
   double centers[K][num_cols];
-  for (int i = 0; i < K; i++) {
-    int center_indices[K];
-    collided = true;
 
-    while (collided) {
-      center_indices[i] = rand() % num_rows;
-      collided = false;
-
-      for (int j = 0; j < i; j++) {
-        if (center_indices[j] == center_indices[i]) {
-          collided = true;
-          break;
-        }
-      }
-
+  if (argc == 7) {
+    int center_indices[3] = {12, 67, 106};
+    for (i = 0; i < K; i ++) {
       vector_copy(centers[i], data_matrix[center_indices[i]], num_cols);
     }
-  }
+  } else {
+    for (i = 0; i < K; i++) {
+      int center_indices[K];
+      collided = true;
 
-  // These are for testing against R with iris data
-  // int center_indices[3] = {12, 67, 106};
-  // for (int i = 0; i < K; i ++) {
-  //   vector_copy(centers[i], data_matrix[center_indices[i]], num_cols);
-  // }
+      while (collided) {
+        center_indices[i] = rand() % num_rows;
+        collided = false;
+
+        for (j = 0; j < i; j++) {
+          if (center_indices[j] == center_indices[i]) {
+            collided = true;
+            break;
+          }
+        }
+
+        vector_copy(centers[i], data_matrix[center_indices[i]], num_cols);
+      }
+    }
+  }
 
   printf("Initial cluster centers:\n");
   for (int i = 0; i < K; i++) {
@@ -140,6 +143,7 @@ int main(int argc, char *argv[]){
   bool changes;
 
   double tstart = omp_get_wtime();
+
   while (1) {
     // Assign points to cluster centers
     changes = false;
@@ -167,8 +171,10 @@ int main(int argc, char *argv[]){
       }
 
       if (cluster[observation] != new_center) {
+        // NOTE: There is an acceptable data race on changes. Threads only ever
+        // set it to true; lost updates are inconsequential. No need to slow
+        // things down for safety.
         changes = true;
-        #pragma omp atomic write
         cluster[observation] = new_center;
       }
     }
@@ -182,27 +188,28 @@ int main(int argc, char *argv[]){
 
     // Find cluster means and reassign centers
     int cluster_index, element, elements_in_cluster;
-    double cluster_mean[num_cols];
+    double cluster_means[num_cols];
     #pragma omp parallel for \
-      private(cluster_index, element, elements_in_cluster, cluster_mean) \
+      private(cluster_index, element, elements_in_cluster, cluster_means) \
       shared(num_rows, cluster, data_matrix, K)
     for (cluster_index = 0; cluster_index < K; cluster_index++) {
       elements_in_cluster = 0;
-      vector_init(cluster_mean, num_cols);
+      vector_init(cluster_means, num_cols);
 
       // Aggregate in-cluster values we can use to take the cluster mean
       for (element = 0; element < num_rows; element++) {
         if (cluster[element] == cluster_index) {
-          vector_add(cluster_mean, cluster_mean, data_matrix[element], num_cols);
+          vector_add(cluster_means, cluster_means, data_matrix[element], num_cols);
           elements_in_cluster++;
         }
       }
 
       // Finish calculating cluster mean, and overwrite centers with the new value
-      vector_elementwise_avg(cluster_mean, cluster_mean, elements_in_cluster, num_cols);
-      vector_copy(centers[cluster_index], cluster_mean, num_cols);
+      vector_elementwise_avg(cluster_means, cluster_means, elements_in_cluster, num_cols);
+      vector_copy(centers[cluster_index], cluster_means, num_cols);
     }
   }
+
   double tend = omp_get_wtime();
 
   printf("\nFinal cluster centers:\n");
@@ -222,5 +229,6 @@ int main(int argc, char *argv[]){
 
   free(data_matrix);
   free(cluster);
+
   exit(0);
 }

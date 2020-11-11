@@ -5,11 +5,14 @@ OPTFLAGS = -fopenmp
 .phony = clean run time
 
 lloyds_par:
-	${CC} ${CFLAGS} lloyds_par.c csvparser.c -o lloyds_par ${LFLAGS} ${OPTFLAGS}
+	${CC} ${CFLAGS} lloyds_par.c csvparser.c -o lloyds_par ${LFLAGS} ${OPTFLAGS} -O3
 
 # Use like this: `make run K=5`
 run: lloyds_par
 	./lloyds_par $k $K "../data/pairs.csv" "," 0 0
+
+test: lloyds_par
+	./lloyds_par 3 "../data/iris.csv" "," 1 1 1
 
 clean:
 	rm lloyds_par

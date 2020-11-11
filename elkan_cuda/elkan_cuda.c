@@ -158,7 +158,7 @@ int main(int argc, char *argv[]){
   double *u_bounds = calloc(num_rows, sizeof(double));
   double *ctr_ctr_dists = malloc(K * K * sizeof(double));
   double drifts[K];
-  double cluster_mean[num_cols];
+  double cluster_means[num_cols];
   bool changes;
   // These need better names
   double s[K];
@@ -166,8 +166,8 @@ int main(int argc, char *argv[]){
   double tstart = omp_get_wtime();
 
   int this_ctr, this_pt;
-  // assume each point is assigned to center 0, and check distance from 
-  // center 1, 2, etc to curent center against upper bound (Upper bound is the 
+  // assume each point is assigned to center 0, and check distance from
+  // center 1, 2, etc to curent center against upper bound (Upper bound is the
   // distance to the best-center-so-far)
   double tmp_diff[num_cols];
   double min_diff = INFINITY;
@@ -177,7 +177,7 @@ int main(int argc, char *argv[]){
 
   bool ubound_not_tight = false;
   double z;
-  while(1) { 
+  while(1) {
     changes = false;
 
     // Calculate center-center distances
@@ -194,16 +194,16 @@ int main(int argc, char *argv[]){
 
       s[i] = min_diff / 2;
     }
-  
+
     // Assign points to cluster centers
     for (this_pt = 0; this_pt < num_rows; this_pt++) {
       if (u_bounds[this_pt] > s[clusterings[this_pt]]) {
         ubound_not_tight = true;
 
         for(this_ctr = 0; this_ctr < K; this_ctr++) {
-          z = max(l_bounds[this_pt * K + this_ctr], 
+          z = max(l_bounds[this_pt * K + this_ctr],
                   ctr_ctr_dists[clusterings[this_pt] * K + this_ctr] / 2);
-          
+
           if (this_ctr == clusterings[this_ctr] || u_bounds[this_pt] <= z) {
             continue;
           }
@@ -252,17 +252,17 @@ int main(int argc, char *argv[]){
     // Calculate cluster mean for each cluster
     for (this_ctr = 0; this_ctr < K; this_ctr++) {
       int elements_in_cluster = 0;
-      vector_init(cluster_mean, num_cols);
+      vector_init(cluster_means, num_cols);
 
       for (int element = 0; element < num_rows; element++) {
         if (clusterings[element] == this_ctr) {
-          vector_add(cluster_mean, cluster_mean, data_matrix[element], num_cols);
+          vector_add(cluster_means, cluster_means, data_matrix[element], num_cols);
           elements_in_cluster++;
         }
       }
 
-      vector_elementwise_avg(cluster_mean, cluster_mean, elements_in_cluster, num_cols);
-      vector_copy(centers[this_ctr], cluster_mean, num_cols);
+      vector_elementwise_avg(cluster_means, cluster_means, elements_in_cluster, num_cols);
+      vector_copy(centers[this_ctr], cluster_means, num_cols);
     }
 
     // Compute centroid drift since last iteration

@@ -33,14 +33,15 @@ void vector_elementwise_avg(double *dst, double *a, int denominator, int length)
 
 // Program should take K, a data set (.csv), a delimiter,
 // a binary flag data_contains_header, and a binary flag to drop labels
-int main(int argc, char *argv[]){
+int main(int argc, char *argv[]) {
   // Seed for consistent cluster center selection
   // In a working implementation, seeding would be variable (e.g. time(NULL))
   srand(111);
   CsvParser *reader;
   CsvRow *row;
+  int i, j;
 
-  if(argc != 6){
+  if(argc < 6) {
       printf("Incorrect number of args. Should be 5, received %d\n", argc - 1);
       exit(1);
   }
@@ -76,7 +77,7 @@ int main(int argc, char *argv[]){
   reader = CsvParser_new(data_fp, delimiter, has_header_row);
 
   double **data_matrix = malloc(num_rows * sizeof(double *));
-  for (int i = 0; i < num_rows; i++) {
+  for (i = 0; i < num_rows; i++) {
     data_matrix[i] = malloc(num_cols * sizeof(double));
   }
 
@@ -101,34 +102,36 @@ int main(int argc, char *argv[]){
   // should be relatively infrequent
   double centers[K][num_cols];
   bool collided;
-  for (int i = 0; i < K; i++) {
-    int center_indices[K];
-    collided = true;
 
-    while (collided) {
-      center_indices[i] = rand() % num_rows;
-      collided = false;
-
-      for (int j = 0; j < i; j++) {
-        if (center_indices[j] == center_indices[i]) {
-          collided = true;
-          break;
-        }
-      }
-
+  if (argc == 7) {
+    int center_indices[3] = {12, 67, 106};
+    for (i = 0; i < K; i ++) {
       vector_copy(centers[i], data_matrix[center_indices[i]], num_cols);
+    }
+  } else {
+    for (i = 0; i < K; i++) {
+      int center_indices[K];
+      collided = true;
+
+      while (collided) {
+        center_indices[i] = rand() % num_rows;
+        collided = false;
+
+        for (j = 0; j < i; j++) {
+          if (center_indices[j] == center_indices[i]) {
+            collided = true;
+            break;
+          }
+        }
+
+        vector_copy(centers[i], data_matrix[center_indices[i]], num_cols);
+      }
     }
   }
 
-  // These are for testing against R with iris data
-  // int center_indices[3] = {12, 67, 106};
-  // for (int i = 0; i < K; i ++) {
-  //   vector_copy(centers[i], data_matrix[center_indices[i]], num_cols);
-  // }
-
   printf("Initial cluster centers:\n");
-  for (int i = 0; i < K; i++) {
-    for (int j = 0; j < num_cols; j++) {
+  for (i = 0; i < K; i++) {
+    for (j = 0; j < num_cols; j++) {
       printf("%f ", centers[i][j]);
     }
     printf("\n");
@@ -137,10 +140,11 @@ int main(int argc, char *argv[]){
 
   int num_iterations = 0;
   int *cluster = malloc(num_rows * sizeof(int));
-  double *cluster_mean = malloc(num_cols * sizeof(double));
+  double cluster_means[num_cols];
   bool changes;
 
   double tstart = omp_get_wtime();
+
   while (1) {
     // Assign points to cluster centers
     changes = false;
@@ -180,24 +184,25 @@ int main(int argc, char *argv[]){
     // Find cluster means and reassign centers
     for (int cluster_index = 0; cluster_index < K; cluster_index++) {
       int elements_in_cluster = 0;
-      vector_init(cluster_mean, num_cols);
+      vector_init(cluster_means, num_cols);
 
       for (int element = 0; element < num_rows; element++) {
         if (cluster[element] == cluster_index) {
-          vector_add(cluster_mean, cluster_mean, data_matrix[element], num_cols);
+          vector_add(cluster_means, cluster_means, data_matrix[element], num_cols);
           elements_in_cluster++;
         }
       }
 
-      vector_elementwise_avg(cluster_mean, cluster_mean, elements_in_cluster, num_cols);
-      vector_copy(centers[cluster_index], cluster_mean, num_cols);
+      vector_elementwise_avg(cluster_means, cluster_means, elements_in_cluster, num_cols);
+      vector_copy(centers[cluster_index], cluster_means, num_cols);
     }
   }
+
   double tend = omp_get_wtime();
 
   printf("\nFinal cluster centers:\n");
-  for (int i = 0; i < K; i++) {
-    for (int j = 0; j < num_cols; j++) {
+  for (i = 0; i < K; i++) {
+    for (j = 0; j < num_cols; j++) {
       printf("%f ", centers[i][j]);
     }
     printf("\n");
@@ -206,13 +211,12 @@ int main(int argc, char *argv[]){
   printf("\nNum iterations: %d\n", num_iterations);
   printf("Time taken for %d clusters: %f seconds\n", K, tend - tstart);
 
-  for (int i = 0; i < num_rows; i++) {
+  for (i = 0; i < num_rows; i++) {
     free(data_matrix[i]);
   }
-  free(data_matrix);
 
+  free(data_matrix);
   free(cluster);
-  free(cluster_mean);
 
   exit(0);
 }
