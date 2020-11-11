@@ -99,8 +99,8 @@ int main(int argc, char *argv[]){
   // Given the fact that we will usually have way more rows than centers, we can
   // probably just roll a number and reroll if we already rolled it. Collisions
   // should be relatively infrequent
-  bool collided;
   double centers[K][num_cols];
+  bool collided;
   for (int i = 0; i < K; i++) {
     int center_indices[K];
     collided = true;
