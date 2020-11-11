@@ -120,9 +120,9 @@ int main(int argc, char *argv[]){
   // Given the fact that we will usually have way more rows than centers, we can
   // probably just roll a number and reroll if we already rolled it. Collisions
   // should be relatively infrequent
-  bool collided;
   double prev_centers[K][num_cols];
   double centers[K][num_cols];
+  bool collided;
   for (i = 0; i < K; i++) {
     int center_indices[K];
     collided = true;
@@ -292,7 +292,7 @@ int main(int argc, char *argv[]){
 
   printf("\nCenter-center distances:\n");
   for (i = 0; i < K; i++) {
-    for (j = 0; j < num_cols; j++) {
+    for (j = 0; j < K; j++) {
       printf("%f ", ctr_ctr_dists[j + i * K]);
     }
     printf("\n");
