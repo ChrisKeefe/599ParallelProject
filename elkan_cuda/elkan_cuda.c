@@ -142,12 +142,6 @@ int main(int argc, char *argv[]){
     }
   }
 
-  // These are for testing against R with iris data
-  // int center_indices[3] = {12, 67, 106};
-  // for (i = 0; i < K; i ++) {
-  //   vector_copy(centers[i], data_matrix[center_indices[i]], num_cols);
-  // }
-
   printf("Initial cluster centers:\n");
   for (i = 0; i < K; i++) {
     for (j = 0; j < num_cols; j++) {
