@@ -11,4 +11,5 @@ lower bound:
 4. Check each point against all centers where d(c1, c2) < 2(upper_bound)
 5. If a distance calculation is required, perform it and assign the result to the lower bound for that pt/ctr pair
 
-
+TODO: Add compiler optimization flags to makefiles
+TODO: Output clusterings?
