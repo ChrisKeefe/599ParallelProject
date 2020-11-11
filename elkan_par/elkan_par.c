@@ -120,33 +120,33 @@ int main(int argc, char *argv[]){
   // Given the fact that we will usually have way more rows than centers, we can
   // probably just roll a number and reroll if we already rolled it. Collisions
   // should be relatively infrequent
-  bool collided;
   double prev_centers[K][num_cols];
   double centers[K][num_cols];
-  // for (i = 0; i < K; i++) {
-  //   int center_indices[K];
-  //   collided = true;
+  bool collided;
+  for (i = 0; i < K; i++) {
+    int center_indices[K];
+    collided = true;
 
-  //   while (collided) {
-  //     center_indices[i] = rand() % num_rows;
-  //     collided = false;
+    while (collided) {
+      center_indices[i] = rand() % num_rows;
+      collided = false;
 
-  //     for (j = 0; j < i; j++) {
-  //       if (center_indices[j] == center_indices[i]) {
-  //         collided = true;
-  //         break;
-  //       }
-  //     }
+      for (j = 0; j < i; j++) {
+        if (center_indices[j] == center_indices[i]) {
+          collided = true;
+          break;
+        }
+      }
 
-  //     vector_copy(centers[i], data_matrix[center_indices[i]], num_cols);
-  //   }
-  // }
-
-  // These are for testing against R with iris data
-  int center_indices[3] = {12, 67, 106};
-  for (i = 0; i < K; i ++) {
-    vector_copy(centers[i], data_matrix[center_indices[i]], num_cols);
+      vector_copy(centers[i], data_matrix[center_indices[i]], num_cols);
+    }
   }
+
+  // These are for testing against R with iris data+
+  // int center_indices[3] = {12, 67, 106};
+  // for (i = 0; i < K; i ++) {
+  //   vector_copy(centers[i], data_matrix[center_indices[i]], num_cols);
+  // }
 
   printf("Initial cluster centers:\n");
   for (i = 0; i < K; i++) {
@@ -158,15 +158,15 @@ int main(int argc, char *argv[]){
   printf("\n");
 
   int num_iterations = 0;
-  int *prev_clusterings = calloc(num_rows, sizeof(int));
   int *clusterings = calloc(num_rows, sizeof(int));
   double *l_bounds = calloc(num_rows * K, sizeof(double));
   double *u_bounds = calloc(num_rows, sizeof(double));
   double *ctr_ctr_dists = malloc(K * K * sizeof(double));
   double drifts[K];
-  double cluster_mean[num_cols];
   bool changes;
+  bool ubound_not_tight = false;
   // These need better names
+  double z;
   double s[K];
 
   double tstart = omp_get_wtime();
@@ -177,17 +177,18 @@ int main(int argc, char *argv[]){
   // distance to the best-center-so-far)
   double tmp_diff[num_cols];
   double min_diff = INFINITY;
+  #pragma omp parallel for private(this_pt) shared(num_rows, u_bounds)
   for (this_pt = 0; this_pt < num_rows; this_pt++) {
     u_bounds[this_pt] = INFINITY;
   }
 
-  bool ubound_not_tight = false;
-  double z;
   while(1) { 
     changes = false;
 
     // Calculate center-center distances
     // TODO: reduce number of distance calculations
+    #pragma omp parallel for private (i, j, tmp_diff, min_diff) \
+        shared(ctr_ctr_dists, centers, num_cols)
     for (i = 0; i < K; i++) {
       for (j = 0; j < K; j++) {
         vector_sub(tmp_diff, centers[i], centers[j], num_cols);
@@ -202,6 +203,8 @@ int main(int argc, char *argv[]){
     }
   
     // Assign points to cluster centers
+    #pragma omp parallel for private (this_pt, this_ctr, z, tmp_diff, ubound_not_tight) \
+      shared(num_rows, num_cols, l_bounds, u_bounds, s, clusterings, ctr_ctr_dists, centers, data_matrix, changes)
     for (this_pt = 0; this_pt < num_rows; this_pt++) {
       if (u_bounds[this_pt] > s[clusterings[this_pt]]) {
         ubound_not_tight = true;
@@ -227,6 +230,9 @@ int main(int argc, char *argv[]){
           vector_sub(tmp_diff, data_matrix[this_pt], centers[this_ctr], num_cols);
           l_bounds[this_pt * K + this_ctr] = vector_L2_norm(tmp_diff, num_cols);
           if(l_bounds[this_pt * K + this_ctr] < u_bounds[this_pt]) {
+            // NOTE: There is an acceptable data race on changes. Threads only ever
+            // set it to true; lost updates are inconsequential. No need to slow
+            // things down for safety.
             changes = true;
             clusterings[this_pt] = this_ctr;
             u_bounds[this_pt] = l_bounds[this_pt * K + this_ctr];
@@ -242,13 +248,8 @@ int main(int argc, char *argv[]){
 
     num_iterations++;
 
-    // Find cluster means and reassign centers
-    // Capture current clusterings for later re-use
-    for (i = 0; i < num_rows; i++) {
-      prev_clusterings[i] = clusterings[i];
-    }
-
     // Capture current centers for later re-use
+    #pragma omp parallel for private(i, j) shared(K, num_cols, prev_centers, centers)
     for (i = 0; i < K; i++) {
       for (j = 0; j < num_cols; j++) {
         prev_centers[i][j] = centers[i][j];
@@ -256,11 +257,16 @@ int main(int argc, char *argv[]){
     }
 
     // Calculate cluster mean for each cluster
+    int element, elements_in_cluster;
+    double cluster_mean[num_cols];
+    #pragma omp parallel for \
+      private(this_ctr, element, elements_in_cluster, cluster_mean) \
+      shared(num_rows, clusterings, data_matrix, K)
     for (this_ctr = 0; this_ctr < K; this_ctr++) {
-      int elements_in_cluster = 0;
+      elements_in_cluster = 0;
       vector_init(cluster_mean, num_cols);
 
-      for (int element = 0; element < num_rows; element++) {
+      for (element = 0; element < num_rows; element++) {
         if (clusterings[element] == this_ctr) {
           vector_add(cluster_mean, cluster_mean, data_matrix[element], num_cols);
           elements_in_cluster++;
@@ -272,12 +278,15 @@ int main(int argc, char *argv[]){
     }
 
     // Compute centroid drift since last iteration
+    #pragma omp parallel for private(i, tmp_diff) shared(centers, prev_centers, num_cols, drifts)
     for (i = 0; i < K; i++) {
       vector_sub(tmp_diff, centers[i], prev_centers[i], num_cols);
       drifts[i] = vector_L2_norm(tmp_diff, num_cols);
     }
 
     // Adjust bounds to account for centroid drift
+    #pragma omp parallel for private(i, j, tmp_diff) \
+      shared(centers, prev_centers, clusterings, num_cols, u_bounds, l_bounds, drifts, K)
     for (i = 0; i < num_rows; i++) {
       vector_sub(tmp_diff, centers[clusterings[i]], prev_centers[clusterings[i]], num_cols);
       u_bounds[i] += vector_L2_norm(tmp_diff, num_cols);
@@ -292,7 +301,7 @@ int main(int argc, char *argv[]){
 
   printf("\nCenter-center distances:\n");
   for (i = 0; i < K; i++) {
-    for (j = 0; j < num_cols; j++) {
+    for (j = 0; j < K; j++) {
       printf("%f ", ctr_ctr_dists[j + i * K]);
     }
     printf("\n");
