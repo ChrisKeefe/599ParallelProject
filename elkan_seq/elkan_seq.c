@@ -212,7 +212,7 @@ int main(int argc, char *argv[]){
           z = max(l_bounds[this_pt * K + this_ctr],
                   ctr_ctr_dists[clusterings[this_pt] * K + this_ctr] / 2);
 
-          if (this_ctr == clusterings[this_ctr] || u_bounds[this_pt] <= z) {
+          if (this_ctr == clusterings[this_pt] || u_bounds[this_pt] <= z) {
             continue;
           }
 
