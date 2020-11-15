@@ -138,7 +138,7 @@ int main(int argc, char *argv[]){
   printf("\n");
 
   int num_iterations = 0;
-  int *cluster = malloc(num_rows * sizeof(int));
+  int *clusterings = malloc(num_rows * sizeof(int));
   bool changes;
 
   double tstart = omp_get_wtime();
@@ -169,12 +169,12 @@ int main(int argc, char *argv[]){
         }
       }
 
-      if (cluster[observation] != new_center) {
+      if (clusterings[observation] != new_center) {
         // NOTE: There is an acceptable data race on changes. Threads only ever
         // set it to true; lost updates are inconsequential. No need to slow
         // things down for safety.
         changes = true;
-        cluster[observation] = new_center;
+        clusterings[observation] = new_center;
       }
     }
 
@@ -190,14 +190,14 @@ int main(int argc, char *argv[]){
     double cluster_means[num_cols];
     #pragma omp parallel for \
       private(cluster_index, element, elements_in_cluster, cluster_means) \
-      shared(num_rows, cluster, data_matrix, K)
+      shared(num_rows, clusterings, data_matrix, K)
     for (cluster_index = 0; cluster_index < K; cluster_index++) {
       elements_in_cluster = 0;
       vector_init(cluster_means, num_cols);
 
-      // Aggregate in-cluster values we can use to take the cluster mean
+      // Aggregate in-cluster values we can use to take the clusterings mean
       for (element = 0; element < num_rows; element++) {
-        if (cluster[element] == cluster_index) {
+        if (clusterings[element] == cluster_index) {
           vector_add(cluster_means, cluster_means, data_matrix[element], num_cols);
           elements_in_cluster++;
         }
@@ -227,7 +227,7 @@ int main(int argc, char *argv[]){
   }
 
   free(data_matrix);
-  free(cluster);
+  free(clusterings);
 
   exit(0);
 }
