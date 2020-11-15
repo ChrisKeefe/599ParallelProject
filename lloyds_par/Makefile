@@ -11,6 +11,7 @@ lloyds_par:
 run: lloyds_par
 	./lloyds_par $k $K "../data/pairs.csv" "," 0 0
 
+# Adding another argument to the end of the call runs in debug mode with our preselected iris centers
 test: lloyds_par
 	./lloyds_par 3 "../data/iris.csv" "," 1 1 1
 

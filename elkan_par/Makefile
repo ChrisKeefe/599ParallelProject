@@ -11,6 +11,7 @@ elkan_par:
 run: elkan_par
 	./elkan_par $k $K "../data/pairs.csv" "," 0 0
 
+# Adding another argument to the end of the call runs in debug mode with our preselected iris centers
 test: elkan_par
 	./elkan_par 3 "../data/iris.csv" "," 1 1 1
 

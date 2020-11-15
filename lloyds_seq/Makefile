@@ -12,6 +12,7 @@ lloyds_seq:
 run: lloyds_seq
 	./lloyds_seq $k $K "../data/iris.csv" "," 1 1
 
+# Adding another argument to the end of the call runs in debug mode with our preselected iris centers
 test: lloyds_seq
 	./lloyds_seq 3 "../data/iris.csv" "," 1 1 1
 

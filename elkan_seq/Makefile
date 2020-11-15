@@ -11,6 +11,7 @@ elkan_seq:
 run: elkan_seq
 	./elkan_seq $k $K "../data/iris.csv" "," 1 1
 
+# Adding another argument to the end of the call runs in debug mode with our preselected iris centers
 test: elkan_seq
 	./elkan_seq 3 "../data/iris.csv" "," 1 1 1
 
