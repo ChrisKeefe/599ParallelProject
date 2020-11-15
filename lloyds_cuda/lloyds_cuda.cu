@@ -152,7 +152,7 @@ int main(int argc, char *argv[]) {
   cout << "\nError: A error with code " << errCode << endl;
   }
 
-  errCode=cudaMalloc((unsigned int**)&clusterings, sizeof(nt)*num_rows;
+  errCode=cudaMalloc((unsigned int**)&clusterings, sizeof(int)*num_rows;
   if(errCode != cudaSuccess) {
   cout << "\nError: B error with code " << errCode << endl;
   }
