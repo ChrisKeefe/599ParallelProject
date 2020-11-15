@@ -6,21 +6,20 @@ ARCHFLAGS = -arch=compute_${GPUCAP} -code=sm_${GPUCAP}
 CFLAGS = -Wall
 LFLAGS = -lm -lcuda
 
-.phony = clean run time
+.phony = clean run test time
 
 elkan_cuda:
 	module load cuda
 	${CC} ${ARCHFLAGS} ${CFLAGS} ${LFLAGS} elkan_cuda.c csvparser.c -o elkan_cuda
 
-# Use like this: `make run K=5`
 run: elkan_cuda
-	./elkan_cuda $k $K "../data/pairs.csv" "," 0 0
+	./jobscripts/elkan_cuda_run.sh
+
+test: elkan_cuda
+	./jobscripts/elkan_cuda_test.sh
+
+time: elkan_cuda
+	./jobscripts/elkan_cuda_time.sh
 
 clean:
 	rm elkan_cuda
-
-time: elkan_cuda
-	./elkan_cuda 5 "../data/pairs.csv" "," 0 0
-	./elkan_cuda 10 "../data/pairs.csv" "," 0 0
-	./elkan_cuda 15 "../data/pairs.csv" "," 0 0
-	./elkan_cuda 25 "../data/pairs.csv" "," 0 0
