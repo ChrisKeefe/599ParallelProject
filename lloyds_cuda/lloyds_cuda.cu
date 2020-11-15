@@ -7,6 +7,8 @@
 
 #include "csvparser.h"
 
+void warmUpGPU();
+
 void vector_init(double *a, int length) {
   for (int i = 0; i < length; i++) {
     a[i] = 0;
@@ -138,40 +140,49 @@ int main(int argc, char *argv[]) {
   printf("\n");
 
   int num_iterations = 0;
-  int *cluster = malloc(num_rows * sizeof(int));
+  int *clusterings = malloc(num_rows * sizeof(int));
   double cluster_means[num_cols];
   bool changes;
 
   double tstart = omp_get_wtime();
 
+  // TODO: Look into how to memcpy a double pointer like this
+  errCode=cudaMalloc((double***)&data_matrix, sizeof(unsigned int)*N);
+  if(errCode != cudaSuccess) {
+  cout << "\nError: A error with code " << errCode << endl;
+  }
+
+  errCode=cudaMalloc((unsigned int**)&clusterings, sizeof(nt)*num_rows;
+  if(errCode != cudaSuccess) {
+  cout << "\nError: B error with code " << errCode << endl;
+  }
+
+  errCode=cudaMalloc((unsigned int**)&dev_C, sizeof(unsigned int)*N);
+  if(errCode != cudaSuccess) {
+  cout << "\nError: C error with code " << errCode << endl;
+  }
+
+  //copy A to device
+  errCode=cudaMemcpy( dev_A, A, sizeof(unsigned int)*N, cudaMemcpyHostToDevice);
+  if(errCode != cudaSuccess) {
+  cout << "\nError: A memcpy error with code " << errCode << endl;
+  }
+
+  //copy B to device
+  errCode=cudaMemcpy( dev_B, B, sizeof(unsigned int)*N, cudaMemcpyHostToDevice);
+  if(errCode != cudaSuccess) {
+  cout << "\nError: A memcpy error with code " << errCode << endl;
+  }
+
+  //copy C to device (initialized to 0)
+  errCode=cudaMemcpy( dev_C, C, sizeof(unsigned int)*N, cudaMemcpyHostToDevice);
+  if(errCode != cudaSuccess) {
+  cout << "\nError: A memcpy error with code " << errCode << endl;
+  }
+
   while (1) {
     // Assign points to cluster centers
     changes = false;
-
-    for (int observation = 0; observation < num_rows; observation++) {
-      int new_center;
-      double best_diff = INFINITY;
-
-      for (int center = 0; center < K; center++) {
-        double current_diff = 0;
-        double tmp;
-
-        for (int col = 0; col < num_cols; col++) {
-          tmp = data_matrix[observation][col] - centers[center][col];
-          current_diff += tmp * tmp;
-        }
-
-        if (current_diff < best_diff) {
-          best_diff = current_diff;
-          new_center = center;
-        }
-      }
-
-      if (cluster[observation] != new_center) {
-        changes = true;
-        cluster[observation] = new_center;
-      }
-    }
 
     // If we didn't change any cluster assignments, we've reached convergence
     if (!changes) {
@@ -186,7 +197,7 @@ int main(int argc, char *argv[]) {
       vector_init(cluster_means, num_cols);
 
       for (int element = 0; element < num_rows; element++) {
-        if (cluster[element] == cluster_index) {
+        if (clusterings[element] == cluster_index) {
           vector_add(cluster_means, cluster_means, data_matrix[element], num_cols);
           elements_in_cluster++;
         }
@@ -215,11 +226,53 @@ int main(int argc, char *argv[]) {
   }
 
   free(data_matrix);
-  free(cluster);
+  free(clusterings);
 
   exit(0);
 }
-  free(cluster);
 
-  exit(0);
+// We'll need to copy in data_matrix, centers, cluster_means, clusterings
+
+// Borrowing from his G5_Q3, maybe we start with 1024 as block size. Calculate
+// numblocks as ceil(N*1.0/1024)
+__global__ void lloyds(double *cluster_means, double *centers, int *clusterings) {
+  // we need to in some way parallelize over observations.
+  unsigned int tid = threadIdx.x + blockIdx.x * blockDim.x;
+
+  // Where N is num_rows
+  if (tid >= N) {
+    return;
+  }
+
+  // The above is taken directly from his G5_Q3 code
+
+  int new_center;
+  double best_diff = INFINITY;
+
+  for (int center = 0; center < K; center++) {
+    double current_diff = 0;
+    double tmp;
+
+    for (int col = 0; col < num_cols; col++) {
+      tmp = data_matrix[tid][col] - centers[center][col];
+      current_diff += tmp * tmp;
+    }
+
+    if (current_diff < best_diff) {
+      best_diff = current_diff;
+      new_center = center;
+    }
+  }
+
+  if (clusterings[tid] != new_center) {
+    // Make global?
+    changes = true;
+    clusterings[tid] = new_center;
+  }
+}
+
+
+void warmUpGPU(){
+  cudaDeviceSynchronize();
+  return;
 }
