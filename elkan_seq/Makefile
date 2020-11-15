@@ -5,11 +5,15 @@ OPTFLAGS = -fopenmp
 .phony = clean run time
 
 elkan_seq:
-	${CC} ${CFLAGS} elkan_seq.c csvparser.c -o elkan_seq ${LFLAGS} ${OPTFLAGS}
+	${CC} ${CFLAGS} elkan_seq.c csvparser.c -o elkan_seq ${LFLAGS} ${OPTFLAGS} -O3
 
 # Use like this: `make run K=5`
 run: elkan_seq
-	./elkan_seq 3 "../data/iris.csv" "," 1 1
+	./elkan_seq $k $K "../data/iris.csv" "," 1 1
+
+# Adding another argument to the end of the call runs in debug mode with our preselected iris centers
+test: elkan_seq
+	./elkan_seq 3 "../data/iris.csv" "," 1 1 1
 
 clean:
 	rm elkan_seq
