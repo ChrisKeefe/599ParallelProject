@@ -1,12 +1,15 @@
 CC = nvcc
-# TODO: replace compute_X and sm_X with architecture-specific vals
-CFLAGS = -Wall -arch=compute_X -code=sm_X
+# TODO: replace GPUCAP with architecture-specific values. 60 covers P100
+GPUCAP = 60
+ARCHFLAGS = -arch=compute_${GPUCAP} -code=sm_${GPUCAP}
+CFLAGS = -Wall
 LFLAGS = -lm -lcuda
 
 .phony = clean run time
 
 lloyds_cuda:
-	${CC} ${CFLAGS} lloyds_cuda.c csvparser.c -o lloyds_cuda ${LFLAGS}
+	module load cuda
+	${CC} ${ARCHFLAGS} ${CFLAGS} ${LFLAGS} lloyds_cuda.c csvparser.c -o lloyds_cuda
 
 # Use like this: `make run K=5`
 run: lloyds_cuda

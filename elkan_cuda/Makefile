@@ -1,12 +1,16 @@
 CC = nvcc
-# TODO: replace compute_X and sm_X with architecture-specific vals
-CFLAGS = -Wall -arch=compute_X -code=sm_X
+CFLAGS = -Xcompiler -fopenmp
+# TODO: replace GPUCAP with architecture-specific values. 60 covers P100
+GPUCAP = 60
+ARCHFLAGS = -arch=compute_${GPUCAP} -code=sm_${GPUCAP}
+CFLAGS = -Wall
 LFLAGS = -lm -lcuda
 
 .phony = clean run time
 
 elkan_cuda:
-	${CC} ${CFLAGS} elkan_cuda.c csvparser.c -o elkan_cuda ${LFLAGS}
+	module load cuda
+	${CC} ${ARCHFLAGS} ${CFLAGS} ${LFLAGS} elkan_cuda.c csvparser.c -o elkan_cuda
 
 # Use like this: `make run K=5`
 run: elkan_cuda
