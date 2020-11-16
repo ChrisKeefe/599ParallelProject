@@ -138,7 +138,7 @@ int main(int argc, char *argv[]) {
   printf("\n");
 
   int num_iterations = 0;
-  int *clusterings = malloc(num_rows * sizeof(int));
+  int *clusterings = calloc(num_rows, sizeof(int));
   double cluster_means[num_cols];
   bool changes;
 
