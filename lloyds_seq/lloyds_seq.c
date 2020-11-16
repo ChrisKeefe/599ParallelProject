@@ -81,7 +81,6 @@ int main(int argc, char *argv[]) {
     data_matrix[i] = malloc(num_cols * sizeof(double));
   }
 
-
   int row_index = 0;
   while ((row = CsvParser_getRow(reader))){
     const char **row_fields = CsvParser_getFields(row);
@@ -139,7 +138,7 @@ int main(int argc, char *argv[]) {
   printf("\n");
 
   int num_iterations = 0;
-  int *cluster = malloc(num_rows * sizeof(int));
+  int *clusterings = malloc(num_rows * sizeof(int));
   double cluster_means[num_cols];
   bool changes;
 
@@ -168,9 +167,9 @@ int main(int argc, char *argv[]) {
         }
       }
 
-      if (cluster[observation] != new_center) {
+      if (clusterings[observation] != new_center) {
         changes = true;
-        cluster[observation] = new_center;
+        clusterings[observation] = new_center;
       }
     }
 
@@ -187,7 +186,7 @@ int main(int argc, char *argv[]) {
       vector_init(cluster_means, num_cols);
 
       for (int element = 0; element < num_rows; element++) {
-        if (cluster[element] == cluster_index) {
+        if (clusterings[element] == cluster_index) {
           vector_add(cluster_means, cluster_means, data_matrix[element], num_cols);
           elements_in_cluster++;
         }
@@ -216,7 +215,7 @@ int main(int argc, char *argv[]) {
   }
 
   free(data_matrix);
-  free(cluster);
+  free(clusterings);
 
   exit(0);
 }

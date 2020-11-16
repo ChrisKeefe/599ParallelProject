@@ -101,7 +101,6 @@ int main(int argc, char *argv[]) {
     data_matrix[i] = malloc(num_cols * sizeof(double));
   }
 
-
   int row_index = 0;
   while ((row = CsvParser_getRow(reader))){
     const char **row_fields = CsvParser_getFields(row);

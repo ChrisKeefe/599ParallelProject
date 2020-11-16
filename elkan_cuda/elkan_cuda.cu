@@ -31,29 +31,9 @@ void vector_elementwise_avg(double *dst, double *a, int denominator, int length)
   }
 }
 
-double vector_L2_norm(double *a, int length) {
-  double vec_norm = 0;
-
-  for (int i = 0; i < length; i++) {
-    vec_norm += a[i] * a[i];
-  }
-
-  return sqrt(vec_norm);
-}
-
-void vector_sub(double *dst, double *a, double *b, int length) {
-  for (int i = 0; i < length; i++) {
-    dst[i] = a[i] - b[i];
-  }
-}
-
-static inline double max(double a, double b) {
-  return a > b ? a : b;
-}
-
 // Program should take K, a data set (.csv), a delimiter,
 // a binary flag data_contains_header, and a binary flag to drop labels
-int main(int argc, char *argv[]){
+int main(int argc, char *argv[]) {
   // Seed for consistent cluster center selection
   // In a working implementation, seeding would be variable (e.g. time(NULL))
   srand(111);
@@ -61,7 +41,7 @@ int main(int argc, char *argv[]){
   CsvRow *row;
   int i, j;
 
-  if(argc < 6){
+  if(argc < 6) {
       printf("Incorrect number of args. Should be 5, received %d\n", argc - 1);
       exit(1);
   }
@@ -119,7 +99,6 @@ int main(int argc, char *argv[]){
   // Given the fact that we will usually have way more rows than centers, we can
   // probably just roll a number and reroll if we already rolled it. Collisions
   // should be relatively infrequent
-  double prev_centers[K][num_cols];
   double centers[K][num_cols];
   bool collided;
 
@@ -159,139 +138,66 @@ int main(int argc, char *argv[]){
   printf("\n");
 
   int num_iterations = 0;
-  int *clusterings = calloc(num_rows, sizeof(int));
-  double *l_bounds = calloc(num_rows * K, sizeof(double));
-  double *u_bounds = calloc(num_rows, sizeof(double));
-  double *ctr_ctr_dists = malloc(K * K * sizeof(double));
-  double drifts[K];
-  bool changes;
-  bool ubound_not_tight = false;
-
-  // These need better names
-  double z;
-  double s[K];
-
-  int this_ctr, this_pt;
-  double tmp_diff[num_cols];
-  double min_diff = INFINITY;
-
-  int elements_in_cluster;
+  int *cluster = malloc(num_rows * sizeof(int));
   double cluster_means[num_cols];
+  bool changes;
 
   double tstart = omp_get_wtime();
 
-  for (this_pt = 0; this_pt < num_rows; this_pt++) {
-    u_bounds[this_pt] = INFINITY;
-  }
-
-  while(num_iterations < 27) {
+  while (1) {
+    // Assign points to cluster centers
     changes = false;
 
-    // Calculate center-center distances
-    // TODO: reduce number of distance calculations
-    for (i = 0; i < K; i++) {
-      for (j = 0; j < K; j++) {
-        vector_sub(tmp_diff, centers[i], centers[j], num_cols);
-        ctr_ctr_dists[i * K + j] = vector_L2_norm(tmp_diff, num_cols);
+    for (int observation = 0; observation < num_rows; observation++) {
+      int new_center;
+      double best_diff = INFINITY;
 
-        if (ctr_ctr_dists[i * K + j] < min_diff) {
-          min_diff = ctr_ctr_dists[i * K + j];
+      for (int center = 0; center < K; center++) {
+        double current_diff = 0;
+        double tmp;
+
+        for (int col = 0; col < num_cols; col++) {
+          tmp = data_matrix[observation][col] - centers[center][col];
+          current_diff += tmp * tmp;
+        }
+
+        if (current_diff < best_diff) {
+          best_diff = current_diff;
+          new_center = center;
         }
       }
 
-      s[i] = min_diff / 2;
-    }
-
-    // Assign points to cluster centers
-    for (this_pt = 0; this_pt < num_rows; this_pt++) {
-      if (u_bounds[this_pt] > s[clusterings[this_pt]]) {
-        ubound_not_tight = true;
-
-        for(this_ctr = 0; this_ctr < K; this_ctr++) {
-          z = max(l_bounds[this_pt * K + this_ctr],
-                  ctr_ctr_dists[clusterings[this_pt] * K + this_ctr] / 2);
-
-          if (this_ctr == clusterings[this_pt] || u_bounds[this_pt] <= z) {
-            continue;
-          }
-
-          if (ubound_not_tight) {
-            vector_sub(tmp_diff, data_matrix[this_pt], centers[clusterings[this_pt]], num_cols);
-            u_bounds[this_pt] = vector_L2_norm(tmp_diff, num_cols);
-            ubound_not_tight = false;
-
-            if (u_bounds[this_pt] <= z) {
-              continue;
-            }
-          }
-
-          vector_sub(tmp_diff, data_matrix[this_pt], centers[this_ctr], num_cols);
-          l_bounds[this_pt * K + this_ctr] = vector_L2_norm(tmp_diff, num_cols);
-          if(l_bounds[this_pt * K + this_ctr] < u_bounds[this_pt]) {
-            changes = true;
-            clusterings[this_pt] = this_ctr;
-            u_bounds[this_pt] = l_bounds[this_pt * K + this_ctr];
-          }
-        }
+      if (cluster[observation] != new_center) {
+        changes = true;
+        cluster[observation] = new_center;
       }
     }
 
-    // If no clusterings have changed, we have reached convergence
+    // If we didn't change any cluster assignments, we've reached convergence
     if (!changes) {
       break;
     }
 
     num_iterations++;
 
-    // Capture current centers for later re-use
-    for (this_ctr = 0; this_ctr < K; this_ctr++) {
-      for (j = 0; j < num_cols; j++) {
-        prev_centers[this_ctr][j] = centers[this_ctr][j];
-      }
-    }
-
-    // Calculate cluster mean for each cluster
-    for (this_ctr = 0; this_ctr < K; this_ctr++) {
-      elements_in_cluster = 0;
+    // Find cluster means and reassign centers
+    for (int cluster_index = 0; cluster_index < K; cluster_index++) {
+      int elements_in_cluster = 0;
       vector_init(cluster_means, num_cols);
 
-      for (this_pt = 0; this_pt < num_rows; this_pt++) {
-        if (clusterings[this_pt] == this_ctr) {
-          vector_add(cluster_means, cluster_means, data_matrix[this_pt], num_cols);
+      for (int element = 0; element < num_rows; element++) {
+        if (cluster[element] == cluster_index) {
+          vector_add(cluster_means, cluster_means, data_matrix[element], num_cols);
           elements_in_cluster++;
         }
       }
 
       vector_elementwise_avg(cluster_means, cluster_means, elements_in_cluster, num_cols);
-      vector_copy(centers[this_ctr], cluster_means, num_cols);
-    }
-
-    // Compute centroid drift since last iteration
-    for (this_ctr = 0; this_ctr < K; this_ctr++) {
-      vector_sub(tmp_diff, centers[this_ctr], prev_centers[this_ctr], num_cols);
-      drifts[this_ctr] = vector_L2_norm(tmp_diff, num_cols);
-    }
-
-    // Adjust bounds to account for centroid drift
-    for (this_pt = 0; this_pt < num_rows; this_pt++) {
-      vector_sub(tmp_diff, centers[clusterings[this_pt]], prev_centers[clusterings[this_pt]], num_cols);
-      u_bounds[this_pt] += vector_L2_norm(tmp_diff, num_cols);
-
-      for (this_ctr = 0; this_ctr < K; this_ctr++) {
-        l_bounds[this_pt * K + this_ctr] -= drifts[this_ctr];
-      }
+      vector_copy(centers[cluster_index], cluster_means, num_cols);
     }
   }
 
   double tend = omp_get_wtime();
-
-  printf("Center-center distances:\n");
-  for (i = 0; i < K; i++) {
-    for (j = 0; j < K; j++) {
-      printf("%f ", ctr_ctr_dists[j + i * K]);
-    }
-    printf("\n");
-  }
 
   printf("\nFinal cluster centers:\n");
   for (i = 0; i < K; i++) {
@@ -309,7 +215,10 @@ int main(int argc, char *argv[]){
   }
 
   free(data_matrix);
-  free(clusterings);
+  free(cluster);
+
+  exit(0);
+}
 
   exit(0);
 }
