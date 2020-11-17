@@ -5,22 +5,38 @@ datas <- data.table("5"=c(3.080444, 1.144337, 4.732397, 2.073992),
                     "10"=c(8.622141, 2.853312, 11.357067, 5.396971),
                     "15"=c(46.224572, 16.703677, 56.625037, 29.008391),
                     "25"=c(154.763342, 53.818381, 181.321405, 119.449632),
-                    "label"=c("Lloyd Serial", "Lloyd Parallel", "Elkan Serial", "Elkan Parallel"))
+                    "label"=c("Optimized Lloyd Serial", "Optimized Lloyd Parallel", "Elkan Serial", "Elkan Parallel"))
+
+slow_datas <- data.table("5"=c("6.41404", "2.65987"),
+                         "10"=c("18.559297", "7.356104"),
+                         "15"=c("100.31866", "42.23705"),
+                         "25"=c("307.145723", "131.894881"),
+                         "label"=c("Lloyd Serial", "Lloyd Parallel"))
+
+slow_speedup <- data.table("5"=c(2.411411084),
+                           "10"=c(2.522979148),
+                           "15"=c(2.375134154),
+                           "25"=c(2.328716025),
+                           "label"=c("Lloyd's"))
 
 speedup_datas <- data.table("5"=c(2.691902822, 2.281782),
                             "10"=c(3.021800981, 2.104341),
                             "15"=c(2.767329134, 1.952023),
                             "25"=c(2.875659563, 1.517973743),
-                            "label"=c("Lloyd's", "Elkan"))
+                            "label"=c("Optimized Lloyd's", "Elkan"))
 
 
 data.times <- melt(datas, id.vars="label", measure.vars=c("5", "10", "15", "25"),
                   variable.factor=FALSE, variable.name="K Centroids")
+# Optionally, add in slow lloyd's
+
 data.times$`K Centroids` <- as.numeric(data.times$`K Centroids`)
 names(data.times) <- c("Algorithm", "K Centroids", "Time (S)")
 
 data.speedup <- melt(speedup_datas, id.vars="label", measure.vars=c("5", "10", "15", "25"),
                      variable.factor=FALSE, variable.name="K Centroids")
+# Optionally, add in slow lloyd's
+
 data.speedup$`K Centroids` <- as.numeric(data.speedup$`K Centroids`)
 names(data.speedup) <- c("Algorithm", "K Centroids", "Time (S)")
 
