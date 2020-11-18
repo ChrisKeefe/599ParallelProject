@@ -1,5 +1,6 @@
 library(data.table)
 library(ggplot2)
+library(stringr)
 
 # TIMING DATA ###########################
 lloyd.datas <- data.table("5"=c(3.080444, 1.144337),
@@ -8,7 +9,7 @@ lloyd.datas <- data.table("5"=c(3.080444, 1.144337),
                           "25"=c(154.763342, 53.818381),
                           "label"=c("Optimized Lloyd", "Optimized Lloyd"),
                           "parallelization"=c("Serial", "Parallel"))
-lloyd.data.times <- melt(lloyd.datas, id.vars=c("label", "Parallelization"), measure.vars=c("5", "10", "15", "25"),
+lloyd.data.times <- melt(lloyd.datas, id.vars=c("label", "parallelization"), measure.vars=c("5", "10", "15", "25"),
                   variable.factor=FALSE, variable.name="K Centroids")
 lloyd.data.times$`K Centroids` <- as.numeric(lloyd.data.times$`K Centroids`)
 names(lloyd.data.times) <- c("Algorithm", "Parallelization", "K Centroids", "Time (S)")
@@ -20,7 +21,7 @@ elkan.datas <- data.table("5"=c(4.732397, 2.073992),
                           "25"=c(181.321405, 119.449632),
                           "label"=c("Elkan", "Elkan"),
                           "parallelization"=c("Serial", "Parallel"))
-elkan.data.times <- melt(elkan.datas, id.vars=c("label", "Parallelization"), measure.vars=c("5", "10", "15", "25"),
+elkan.data.times <- melt(elkan.datas, id.vars=c("label", "parallelization"), measure.vars=c("5", "10", "15", "25"),
                         variable.factor=FALSE, variable.name="K Centroids")
 elkan.data.times$`K Centroids` <- as.numeric(elkan.data.times$`K Centroids`)
 names(elkan.data.times) <- c("Algorithm", "Parallelization", "K Centroids", "Time (S)")
@@ -32,7 +33,7 @@ slow_datas <- data.table("5"=c(6.41404, 2.65987),
                          "25"=c(307.145723, 131.894881),
                          "label"=c("Lloyd", "Lloyd"),
                          "parallelization" = c("Serial", "Parallel"))
-slow.data.times <- melt(slow_datas, id.vars=c("label", "Parallelization"), measure.vars=c("5", "10", "15", "25"),
+slow.data.times <- melt(slow_datas, id.vars=c("label", "parallelization"), measure.vars=c("5", "10", "15", "25"),
                   variable.factor=FALSE, variable.name="K Centroids")
 slow.data.times$`K Centroids` <- as.numeric(slow.data.times$`K Centroids`)
 names(slow.data.times) <- c("Algorithm", "Parallelization", "K Centroids", "Time (S)")
@@ -70,7 +71,7 @@ slow_speedup <- data.table("5"=c(2.411411084),
 slow.data.speedup <- melt(slow_speedup, id.vars="label", measure.vars=c("5", "10", "15", "25"),
                      variable.factor=FALSE, variable.name="K Centroids")
 slow.data.speedup$`K Centroids` <- as.numeric(slow.data.speedup$`K Centroids`)
-names(slow.data.speedup) <- c("Algorithm", "K Centroids", "Time (S)")
+names(slow.data.speedup) <- c("Algorithm", "K Centroids", "Speedup")
 slow.data.speedup
 
 speedup_datas <- data.table("5"=c(2.691902822, 2.281782),
@@ -81,13 +82,17 @@ speedup_datas <- data.table("5"=c(2.691902822, 2.281782),
 data.speedup <- melt(speedup_datas, id.vars="label", measure.vars=c("5", "10", "15", "25"),
                      variable.factor=FALSE, variable.name="K Centroids")
 data.speedup$`K Centroids` <- as.numeric(data.speedup$`K Centroids`)
-names(data.speedup) <- c("Algorithm", "K Centroids", "Time (S)")
+names(data.speedup) <- c("Algorithm", "K Centroids", "Speedup")
 
 data.speedup <- rbind(slow.data.speedup, data.speedup)
 data.speedup
 
 # Speedup Plot
 ggplot() +
-  geom_line(aes(x=`K Centroids`, y=`Time (S)`, color=Algorithm), data=data.speedup) +
+  geom_line(aes(x=`K Centroids`, y=`Speedup`, color=Algorithm), data=data.speedup) +
   scale_y_continuous(limits = c(0, 4.25)) +
+  scale_color_manual(values = c("#FF3300", "#003399", "#66CCCC"),
+                     breaks=c("Elkan", "Lloyd", "Optimized Lloyd"),
+                     labels = function(x) str_wrap(x, width = 10)) +
   theme_bw()
+
