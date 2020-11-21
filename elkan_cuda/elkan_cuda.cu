@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <iostream>
 #include <stdlib.h>
 #include <math.h>
 #include <time.h>
@@ -6,6 +7,15 @@
 #include <omp.h>
 
 #include "csvparser.h"
+
+#define BLOCKSIZE 1024
+
+using namespace std;
+
+__global__ void elkan(double *dev_data_matrix, double *dev_centers, int *dev_clusterings,
+                      bool *dev_changes, int *dev_num_rows, int *dev_num_cols, int *dev_K)
+
+void warmUpGPU();
 
 void vector_init(double *a, int length) {
   for (int i = 0; i < length; i++) {
@@ -41,7 +51,7 @@ int main(int argc, char *argv[]) {
   CsvRow *row;
   int i, j;
 
-  if(argc < 6) {
+  if (argc < 6) {
       printf("Incorrect number of args. Should be 5, received %d\n", argc - 1);
       exit(1);
   }
@@ -76,17 +86,14 @@ int main(int argc, char *argv[]) {
 
   reader = CsvParser_new(data_fp, delimiter, has_header_row);
 
-  double **data_matrix = malloc(num_rows * sizeof(double *));
-  for (i = 0; i < num_rows; i++) {
-    data_matrix[i] = malloc(num_cols * sizeof(double));
-  }
+  double *data_matrix = (double *)malloc(num_rows * num_cols * sizeof(double));
 
   int row_index = 0;
   while ((row = CsvParser_getRow(reader))){
     const char **row_fields = CsvParser_getFields(row);
 
     for (int col_index = 0; col_index < num_cols; col_index++) {
-      data_matrix[row_index][col_index] = atof(row_fields[col_index]);
+      data_matrix[row_index * num_cols + col_index] = atof(row_fields[col_index]);
     }
 
     CsvParser_destroy_row(row);
@@ -99,13 +106,13 @@ int main(int argc, char *argv[]) {
   // Given the fact that we will usually have way more rows than centers, we can
   // probably just roll a number and reroll if we already rolled it. Collisions
   // should be relatively infrequent
-  double centers[K][num_cols];
+  double *centers = (double *)malloc(K * num_cols * sizeof(double));
   bool collided;
 
   if (argc == 7) {
     int center_indices[3] = {12, 67, 106};
     for (i = 0; i < K; i ++) {
-      vector_copy(centers[i], data_matrix[center_indices[i]], num_cols);
+      vector_copy(centers + i * num_cols, data_matrix + center_indices[i] * num_cols, num_cols);
     }
   } else {
     for (i = 0; i < K; i++) {
@@ -123,7 +130,7 @@ int main(int argc, char *argv[]) {
           }
         }
 
-        vector_copy(centers[i], data_matrix[center_indices[i]], num_cols);
+        vector_copy(centers + i * num_cols, data_matrix + center_indices[i] * num_cols, num_cols);
       }
     }
   }
@@ -131,22 +138,90 @@ int main(int argc, char *argv[]) {
   printf("Initial cluster centers:\n");
   for (i = 0; i < K; i++) {
     for (j = 0; j < num_cols; j++) {
-      printf("%f ", centers[i][j]);
+      printf("%f ", centers[i * num_cols + j]);
     }
     printf("\n");
   }
   printf("\n");
+  
+  // Create vars and allocate data for GPU
+  const unsigned int totalBlocks = ceil(num_rows * 1.0 / BLOCKSIZE);
+  warmUpGPU();
 
   int num_iterations = 0;
-  int *cluster = malloc(num_rows * sizeof(int));
+  int *clusterings = (int *)malloc(num_rows * sizeof(int));
   double cluster_means[num_cols];
   bool changes;
 
+  double *dev_data_matrix;
+  double *dev_centers;
+  int *dev_clusterings;
+  bool *dev_changes;
+  int *dev_num_rows;
+  int *dev_num_cols;
+  int *dev_K;
+
+  double kernel_time = 0;
+  double transfer_time = 0;
   double tstart = omp_get_wtime();
+
+  cudaError_t errCode = cudaSuccess;
+  double t_transfer_start = omp_get_wtime();
+  errCode = cudaMalloc(&dev_data_matrix, sizeof(double) * num_rows * num_cols);
+  if (errCode != cudaSuccess) {
+    cout << "\nError: data_matrix alloc error with code " << errCode << endl;
+  }
+
+  errCode = cudaMalloc(&dev_centers, sizeof(double) * K * num_cols);
+  if (errCode != cudaSuccess) {
+    cout << "\nError: centers alloc error with code " << errCode << endl;
+  }
+  
+  errCode = cudaMalloc(&dev_clusterings, sizeof(int) * num_rows);
+  if (errCode != cudaSuccess) {
+    cout << "\nError: clusterings alloc error with code " << errCode << endl;
+  }
+
+  errCode = cudaMalloc(&dev_changes, sizeof(bool));
+  if (errCode != cudaSuccess) {
+    cout << "\nError: changes alloc error with code " << errCode << endl;
+  }
+
+  errCode = cudaMalloc(&dev_num_rows, sizeof(int));
+  if (errCode != cudaSuccess) {
+    cout << "\nError: num_rows alloc error with code " << errCode << endl;
+  }
+
+  errCode = cudaMemcpy(dev_num_rows, &num_rows, sizeof(int), cudaMemcpyHostToDevice);
+  if (errCode != cudaSuccess) {
+    cout << "\nError: num_rows memcpy error with code " << errCode << endl;
+  }
+
+  errCode = cudaMalloc(&dev_num_cols, sizeof(int));
+  if (errCode != cudaSuccess) {
+    cout << "\nError: num_cols alloc error with code " << errCode << endl;
+  }
+
+  errCode = cudaMemcpy(dev_num_cols, &num_cols, sizeof(int), cudaMemcpyHostToDevice);
+  if (errCode != cudaSuccess) {
+    cout << "\nError: num_cols memcpy error with code " << errCode << endl;
+  }
+
+  errCode = cudaMalloc(&dev_K, sizeof(int));
+  if (errCode != cudaSuccess) {
+    cout << "\nError: K alloc error with code " << errCode << endl;
+  }
+
+  errCode = cudaMemcpy(dev_K, &K, sizeof(int), cudaMemcpyHostToDevice);
+  if (errCode != cudaSuccess) {
+    cout << "\nError: K memcpy error with code " << errCode << endl;
+  }
+  transfer_time += omp_get_wtime() - t_transfer_start;
 
   while (1) {
     // Assign points to cluster centers
     changes = false;
+
 
     for (int observation = 0; observation < num_rows; observation++) {
       int new_center;
@@ -167,9 +242,9 @@ int main(int argc, char *argv[]) {
         }
       }
 
-      if (cluster[observation] != new_center) {
+      if (clusterings[observation] != new_center) {
         changes = true;
-        cluster[observation] = new_center;
+        clusterings[observation] = new_center;
       }
     }
 
@@ -186,7 +261,7 @@ int main(int argc, char *argv[]) {
       vector_init(cluster_means, num_cols);
 
       for (int element = 0; element < num_rows; element++) {
-        if (cluster[element] == cluster_index) {
+        if (clusterings[element] == cluster_index) {
           vector_add(cluster_means, cluster_means, data_matrix[element], num_cols);
           elements_in_cluster++;
         }
@@ -215,7 +290,7 @@ int main(int argc, char *argv[]) {
   }
 
   free(data_matrix);
-  free(cluster);
+  free(clusterings);
 
   exit(0);
 }
