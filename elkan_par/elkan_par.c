@@ -207,7 +207,7 @@ int main(int argc, char *argv[]) {
 
     // Assign points to cluster centers
     #pragma omp parallel for private (this_pt, this_ctr, z, tmp_diff, ubound_not_tight) \
-      shared(num_rows, num_cols, l_bounds, u_bounds, s, clusterings, ctr_ctr_dists, centers, data_matrix, changes)
+      shared(num_rows, num_cols, l_bounds, u_bounds, s, clusterings, ctr_ctr_dists, centers, data_matrix, changes) schedule(dynamic)
     for (this_pt = 0; this_pt < num_rows; this_pt++) {
       if (u_bounds[this_pt] > s[clusterings[this_pt]]) {
         ubound_not_tight = true;
