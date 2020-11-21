@@ -6,3 +6,4 @@
 *.fatbin
 
 data/pairs.csv
+.Rhistory
