@@ -163,25 +163,70 @@ int main(int argc, char *argv[]) {
   warmUpGPU();
 
   double kerneltime = 0;
+  double transfertime = 0;
   double tstart = omp_get_wtime();
+
+  cudaError_t errCode = cudaSuccess;
+  double ttransferstart = omp_get_wtime();
+  errCode = cudaMalloc(&dev_data_matrix, sizeof(double) * num_rows * num_cols);
+  if (errCode != cudaSuccess) {
+    cout << "\nError: data_matrix alloc error with code " << errCode << endl;
+  }
+
+  errCode = cudaMalloc(&dev_centers, sizeof(double) * K * num_cols);
+  if (errCode != cudaSuccess) {
+    cout << "\nError: centers alloc error with code " << errCode << endl;
+  }
+
+  errCode = cudaMalloc(&dev_clusterings, sizeof(int) * num_rows);
+  if (errCode != cudaSuccess) {
+    cout << "\nError: clusterings alloc error with code " << errCode << endl;
+  }
+
+  errCode = cudaMalloc(&dev_changes, sizeof(bool));
+  if (errCode != cudaSuccess) {
+    cout << "\nError: changes alloc error with code " << errCode << endl;
+  }
+
+  errCode = cudaMalloc(&dev_num_rows, sizeof(int));
+  if (errCode != cudaSuccess) {
+    cout << "\nError: num_rows alloc error with code " << errCode << endl;
+  }
+
+  errCode = cudaMemcpy(dev_num_rows, &num_rows, sizeof(int), cudaMemcpyHostToDevice);
+  if (errCode != cudaSuccess) {
+    cout << "\nError: num_rows memcpy error with code " << errCode << endl;
+  }
+
+  errCode = cudaMalloc(&dev_num_cols, sizeof(int));
+  if (errCode != cudaSuccess) {
+    cout << "\nError: num_cols alloc error with code " << errCode << endl;
+  }
+
+  errCode = cudaMemcpy(dev_num_cols, &num_cols, sizeof(int), cudaMemcpyHostToDevice);
+  if (errCode != cudaSuccess) {
+    cout << "\nError: num_cols memcpy error with code " << errCode << endl;
+  }
+
+  errCode = cudaMalloc(&dev_K, sizeof(int));
+  if (errCode != cudaSuccess) {
+    cout << "\nError: K alloc error with code " << errCode << endl;
+  }
+
+  errCode = cudaMemcpy(dev_K, &K, sizeof(int), cudaMemcpyHostToDevice);
+  if (errCode != cudaSuccess) {
+    cout << "\nError: K memcpy error with code " << errCode << endl;
+  }
+  transfertime += omp_get_wtime() - ttransferstart;
+
   while (1) {
     // Assign points to cluster centers
     changes = false;
 
-    cudaError_t errCode = cudaSuccess;
-    errCode = cudaMalloc(&dev_data_matrix, sizeof(double) * num_rows * num_cols);
-    if (errCode != cudaSuccess) {
-      cout << "\nError: data_matrix alloc error with code " << errCode << endl;
-    }
-
+    ttransferstart = omp_get_wtime();
     errCode = cudaMemcpy(dev_data_matrix, data_matrix, sizeof(double) * num_rows * num_cols, cudaMemcpyHostToDevice);
     if (errCode != cudaSuccess) {
       cout << "\nError: data_matrix memcpy error with code " << errCode << endl;
-    }
-
-    errCode = cudaMalloc(&dev_centers, sizeof(double) * K * num_cols);
-    if (errCode != cudaSuccess) {
-      cout << "\nError: centers alloc error with code " << errCode << endl;
     }
 
     errCode = cudaMemcpy(dev_centers, centers, sizeof(double) * K * num_cols, cudaMemcpyHostToDevice);
@@ -189,55 +234,16 @@ int main(int argc, char *argv[]) {
       cout << "\nError: centers memcpy error with code " << errCode << endl;
     }
 
-    errCode = cudaMalloc(&dev_clusterings, sizeof(int) * num_rows);
-    if (errCode != cudaSuccess) {
-      cout << "\nError: clusterings alloc error with code " << errCode << endl;
-    }
-
     errCode = cudaMemcpy(dev_clusterings, clusterings, sizeof(int) * num_rows, cudaMemcpyHostToDevice);
     if (errCode != cudaSuccess) {
       cout << "\nError: clusterings memcpy error with code " << errCode << endl;
-    }
-
-    errCode = cudaMalloc(&dev_changes, sizeof(bool));
-    if (errCode != cudaSuccess) {
-      cout << "\nError: changes alloc error with code " << errCode << endl;
     }
 
     errCode = cudaMemcpy(dev_changes, &changes, sizeof(bool), cudaMemcpyHostToDevice);
     if (errCode != cudaSuccess) {
       cout << "\nError: changes memcpy error with code " << errCode << endl;
     }
-
-    errCode = cudaMalloc(&dev_num_rows, sizeof(int));
-    if (errCode != cudaSuccess) {
-      cout << "\nError: num_rows alloc error with code " << errCode << endl;
-    }
-
-    errCode = cudaMemcpy(dev_num_rows, &num_rows, sizeof(int), cudaMemcpyHostToDevice);
-    if (errCode != cudaSuccess) {
-      cout << "\nError: num_rows memcpy error with code " << errCode << endl;
-    }
-
-    errCode = cudaMalloc(&dev_num_cols, sizeof(int));
-    if (errCode != cudaSuccess) {
-      cout << "\nError: num_cols alloc error with code " << errCode << endl;
-    }
-
-    errCode = cudaMemcpy(dev_num_cols, &num_cols, sizeof(int), cudaMemcpyHostToDevice);
-    if (errCode != cudaSuccess) {
-      cout << "\nError: num_cols memcpy error with code " << errCode << endl;
-    }
-
-    errCode = cudaMalloc(&dev_K, sizeof(int));
-    if (errCode != cudaSuccess) {
-      cout << "\nError: K alloc error with code " << errCode << endl;
-    }
-
-    errCode = cudaMemcpy(dev_K, &K, sizeof(int), cudaMemcpyHostToDevice);
-    if (errCode != cudaSuccess) {
-      cout << "\nError: K memcpy error with code " << errCode << endl;
-    }
+    transfertime += omp_get_wtime() - ttransferstart;
 
     double kernelstart = omp_get_wtime();
     lloyds<<<totalBlocks, BLOCKSIZE>>>(dev_data_matrix, dev_centers, dev_clusterings, dev_changes, dev_num_rows, dev_num_cols, dev_K);
@@ -258,41 +264,6 @@ int main(int argc, char *argv[]) {
     errCode = cudaMemcpy(&changes, dev_changes, sizeof(bool), cudaMemcpyDeviceToHost);
     if (errCode != cudaSuccess) {
       cout << "\nError: getting changes result from GPU error with code " << errCode << endl;
-    }
-
-    errCode = cudaFree(dev_data_matrix);
-    if (errCode != cudaSuccess) {
-      cout << "\nError: data_matrix free error with code " << errCode << endl;
-    }
-
-    errCode = cudaFree(dev_centers);
-    if (errCode != cudaSuccess) {
-      cout << "\nError: centers free error with code " << errCode << endl;
-    }
-
-    errCode = cudaFree(dev_clusterings);
-    if (errCode != cudaSuccess) {
-      cout << "\nError: clusterings free error with code " << errCode << endl;
-    }
-
-    errCode = cudaFree(dev_changes));
-    if (errCode != cudaSuccess) {
-      cout << "\nError: changes free error with code " << errCode << endl;
-    }
-
-    errCode = cudaFree(dev_num_rows);
-    if (errCode != cudaSuccess) {
-      cout << "\nError: num_rows free error with code " << errCode << endl;
-    }
-
-    errCode = cudaFree(dev_num_cols);
-    if (errCode != cudaSuccess) {
-      cout << "\nError: num_cols free error with code " << errCode << endl;
-    }
-
-    errCode = cudaFree(dev_K);
-    if (errCode != cudaSuccess) {
-      cout << "\nError: K free error with code " << errCode << endl;
     }
 
     // If we didn't change any cluster assignments, we've reached convergence
