@@ -174,6 +174,7 @@ int main(int argc, char *argv[]) {
   double cputime;
 
   cudaError_t errCode = cudaSuccess;
+  
   double tstart = omp_get_wtime();
   double ttransferstart = omp_get_wtime();
   errCode = cudaMalloc(&dev_data_matrix, sizeof(double) * num_rows * num_cols);
