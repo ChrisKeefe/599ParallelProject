@@ -514,7 +514,7 @@ __global__ void adjust_bounds(double *dev_u_bounds, double *dev_l_bounds, double
 
   if (tid >= *dev_num_rows) return;
 
-  double tmp_diff[*dev_num_cols];
+  double tmp_diff[(*dev_num_cols)];
   for (int i = 0; i < *dev_num_cols; i++) {
     tmp_diff[i] = dev_centers[dev_clusterings[tid]] - dev_prev_centers[dev_clusterings[tid]];
   }
