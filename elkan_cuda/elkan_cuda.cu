@@ -4,6 +4,7 @@
 #include <math.h>
 #include <time.h>
 #include <stdbool.h>
+#include <string.h>
 #include <omp.h>
 
 #include "csvparser.h"
@@ -12,7 +13,7 @@
 
 using namespace std;
 
-__global__ void adjust_bounds( double *dev_u_bounds, double *dev_l_bounds, double *dev_centers, 
+__global__ void adjust_bounds( double *dev_u_bounds, double *dev_l_bounds, double *dev_centers,
                                double *dev_prev_centers, int *dev_clustering, double *dev_drifts,
                                int *dev_num_rows, int *dev_num_cols, int *dev_K){
 __global__ void reassign(int *dev_num_rows, int *dev_num_cols, int *dev_clusterings, double *dev_cluster_means,
@@ -148,7 +149,7 @@ int main(int argc, char *argv[]) {
     printf("\n");
   }
   printf("\n");
-  
+
   // Create vars and allocate data for GPU
   const unsigned int totalBlocks = ceil(num_rows * 1.0 / BLOCKSIZE);
   warmUpGPU();
@@ -177,7 +178,7 @@ int main(int argc, char *argv[]) {
   double cpu_time;
 
   cudaError_t errCode = cudaSuccess;
-  
+
   double t_start = omp_get_wtime();
   double t_transfer_start = t_start;
 
@@ -205,7 +206,7 @@ int main(int argc, char *argv[]) {
   if (errCode != cudaSuccess) {
     cout << "\nError: centers alloc error with code " << errCode << endl;
   }
-  
+
   errCode = cudaMalloc(&dev_clusterings, sizeof(int) * num_rows);
   if (errCode != cudaSuccess) {
     cout << "\nError: clusterings alloc error with code " << errCode << endl;
@@ -252,8 +253,8 @@ int main(int argc, char *argv[]) {
   // #########################
   // # BEGIN ELKAN MAIN LOOP #
   // #########################
-  
-  // TODO: I suspect we're going to need additional memory allocations: 
+
+  // TODO: I suspect we're going to need additional memory allocations:
   // u_bound, l_bound, s, z, drifts, ctr_ctr_dists, prev_clousterings, bound_not_tight?
 
   while (1) {
@@ -302,9 +303,8 @@ int main(int argc, char *argv[]) {
 
     num_iterations++;
 
-    // TODO: is this lil guy in the right place?
     // Capture current centers for later re-use
-    memcpy(prev_centers, centers, num_cols * K)
+    memcpy(prev_centers, centers, num_cols * K);
 
     // #######################################
     // Find cluster means and reassign centers
@@ -389,7 +389,7 @@ int main(int argc, char *argv[]) {
 /*
 Adjusts the upper and lower bounds to accomodate for centroid drift
 */
-__global__ void adjust_bounds( double *dev_u_bounds, double *dev_l_bounds, double *dev_centers, 
+__global__ void adjust_bounds( double *dev_u_bounds, double *dev_l_bounds, double *dev_centers,
                                double *dev_prev_centers, int *dev_clustering, double *dev_drifts,
                                int *dev_num_rows, int *dev_num_cols, int *dev_K){
     unsigned int tid = threadIdx.x + blockIdx.x * blockDim.x;

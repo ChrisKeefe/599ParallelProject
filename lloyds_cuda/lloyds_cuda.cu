@@ -153,7 +153,7 @@ int main(int argc, char *argv[]) {
 
   int num_iterations = 0;
   int *clusterings = (int *)malloc(num_rows * sizeof(int));
-  double cluster_means[num_cols * K];
+  double *cluster_means = (double *)malloc(num_cols * K * sizeof(double));
   int elements_per_cluster[K];
   bool changes;
 
@@ -175,7 +175,7 @@ int main(int argc, char *argv[]) {
   double cpu_time;
 
   cudaError_t errCode = cudaSuccess;
-  
+
   double t_start = omp_get_wtime();
   double t_transfer_start = t_start;
   errCode = cudaMalloc(&dev_data_matrix, sizeof(double) * num_rows * num_cols);
@@ -311,6 +311,7 @@ int main(int argc, char *argv[]) {
     transfer_time += omp_get_wtime() - t_transfer_start;
 
     t_cpu_start = omp_get_wtime();
+    #pragma omp parallel for
     for (int i = 0; i < K; i++) {
       vector_elementwise_avg(cluster_means + i * num_cols, cluster_means + i * num_cols, elements_per_cluster[i], num_cols);
     }

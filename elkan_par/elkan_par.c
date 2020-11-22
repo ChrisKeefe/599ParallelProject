@@ -3,6 +3,7 @@
 #include <math.h>
 #include <time.h>
 #include <stdbool.h>
+#include <string.h>
 #include <omp.h>
 
 #include "csvparser.h"
@@ -251,14 +252,8 @@ int main(int argc, char *argv[]) {
 
     num_iterations++;
 
-// TODO: should this be aligned with the memcopy approach used in elkan_cuda?
     // Capture current centers for later re-use
-    #pragma omp parallel for private(i, j) shared(K, num_cols, prev_centers, centers)
-    for (this_ctr = 0; this_ctr < K; this_ctr++) {
-      for (j = 0; j < num_cols; j++) {
-        prev_centers[this_ctr][j] = centers[this_ctr][j];
-      }
-    }
+    memcpy(prev_centers, centers, num_cols * K);
 
     // Calculate cluster mean for each cluster
     #pragma omp parallel for \
