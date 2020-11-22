@@ -172,6 +172,7 @@ int main(int argc, char *argv[]) {
 
   double *dev_data_matrix;
   double *dev_centers;
+  double *dev_prev_centers;
   double *dev_cluster_means;
   double *dev_u_bounds;
   double *dev_l_bounds;
@@ -182,7 +183,6 @@ int main(int argc, char *argv[]) {
   int *dev_num_rows;
   int *dev_num_cols;
   int *dev_K;
-
 
   double kernel_start;
   double kernel_time = 0;
@@ -258,6 +258,26 @@ int main(int argc, char *argv[]) {
   errCode = cudaMemcpy(dev_K, &K, sizeof(int), cudaMemcpyHostToDevice);
   if (errCode != cudaSuccess) {
     cout << "\nError: K memcpy error with code " << errCode << endl;
+  }
+
+  errCode = cudaMalloc(&dev_u_bounds, sizeof(double) * num_rows);
+  if (errCode != cudaSuccess) {
+    cout << "\nError: u bounds alloc error with code " << errCode << endl;
+  }
+
+  errCode = cudaMalloc(&dev_l_bounds, sizeof(double) * num_rows * K);
+  if (errCode != cudaSuccess) {
+    cout << "\nError: l bounds alloc error with code " << errCode << endl;
+  }
+
+  errCode = cudaMalloc(&dev_drifts, sizeof(double) * K);
+  if (errCode != cudaSuccess) {
+    cout << "\nError: drifts alloc error with code " << errCode << endl;
+  }
+
+  errCode = cudaMalloc(&dev_prev_centers, sizeof(double) * K * num_cols);
+  if (errCode != cudaSuccess) {
+    cout << "\nError: prev centers alloc error with code " << errCode << endl;
   }
 
   transfer_time += omp_get_wtime() - t_transfer_start;
@@ -412,6 +432,37 @@ int main(int argc, char *argv[]) {
     // Adjust bounds to account for centroid drift
     // ###########################################
     // TODO: transfer data, call adjust_bounds (below), time
+    errCode = cudaMemcpy(dev_u_bounds, u_bounds, sizeof(double) * num_rows, cudaMemcpyHostToDevice);
+    if (errCode != cudaSuccess) {
+      cout << "\nError: u bounds memcpy error with code " << errCode << endl;
+    }
+
+    errCode = cudaMemcpy(dev_l_bounds, l_bounds, sizeof(double) * num_rows * K, cudaMemcpyHostToDevice);
+    if (errCode != cudaSuccess) {
+      cout << "\nError: l bounds memcpy error with code " << errCode << endl;
+    }
+
+    errCode = cudaMemcpy(dev_drifts, drifs, sizeof(double) * K, cudaMemcpyHostToDevice);
+    if (errCode != cudaSuccess) {
+      cout << "\nError: drifts memcpy error with code " << errCode << endl;
+    }
+
+    temp = dev_centers;
+    dev_centers = dev_prev_centers;
+    dev_centers = temp;
+
+    adjust_bounds<<<totalBlocks, BLOCKSIZE>>>(dev_u_bounds, dev_l_bounds, dev_centers, dev_prev_centers, dev_clustering, dev_drifts, dev_num_rows, dev_num_cols, dev_K);
+    cudaDeviceSynchronize();
+
+    errCode = cudaMemcpy(u_bounds, dev_u_bounds, sizeof(double) * num_cols, cudaMemcpyDeviceToHost);
+    if (errCode != cudaSuccess) {
+      cout << "\nError: getting u bounds from GPU error with code " << errCode << endl;
+    }
+
+    errCode = cudaMemcpy(l_bounds, dev_l_bounds, sizeof(double) * num_cols * K, cudaMemcpyDeviceToHost);
+    if (errCode != cudaSuccess) {
+      cout << "\nError: getting l bounds from GPU error with code " << errCode << endl;
+    }
     // TODO: Please double-check the code in this guy!
   }
 
@@ -436,18 +487,26 @@ int main(int argc, char *argv[]) {
 /*
 Adjusts the upper and lower bounds to accomodate for centroid drift
 */
-__global__ void adjust_bounds( double *dev_u_bounds, double *dev_l_bounds, double *dev_centers,
-                               double *dev_prev_centers, int *dev_clustering, double *dev_drifts,
-                               int *dev_num_rows, int *dev_num_cols, int *dev_K){
+__global__ void adjust_bounds(double *dev_u_bounds, double *dev_l_bounds, double *dev_centers,
+                              double *dev_prev_centers, int *dev_clustering, double *dev_drifts,
+                              int *dev_num_rows, int *dev_num_cols, int *dev_K) {
     unsigned int tid = threadIdx.x + blockIdx.x * blockDim.x;
     if (tid >= *dev_num_rows) return;
 
     double tmp_diff[*dev_num_cols];
-    vector_sub(tmp_diff, dev_centers[dev_clusterings[tid]], dev_prev_centers[dev_clusterings[tid]], *dev_num_cols);
-    dev_u_bounds[tid] += vector_L2_norm(tmp_diff, *dev_num_cols);
+    // vector_sub(tmp_diff, dev_centers[dev_clusterings[tid]], dev_prev_centers[dev_clusterings[tid]], *dev_num_cols);
+    for (int i = 0; i < *dev_num_cols; i++) {
+      tmp_diff[i] = dev_centers[dev_clusterings[tid]] - dev_prev_centers[dev_clusterings[tid]];
+    }
+
+    double vec_norm = 0;
+    for (int i = 0; i < *dev_num_cols; i++) {
+      vec_norm += a[i] * a[i];
+    }
+    dev_u_bounds[tid] += sqrt(vec_norm);
 
     for (int this_ctr = 0; this_ctr < *dev_K; this_ctr++) {
-      l_bounds[tid * (*dev_K) + this_ctr] -= drifts[this_ctr];
+      dev_l_bounds[tid * (*dev_K) + this_ctr] -= dev_drifts[this_ctr];
     }
   }
 }
