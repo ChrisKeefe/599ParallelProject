@@ -5,11 +5,12 @@
 #SBATCH --mem=10000
 #SBATCH -G 1
 #SBATCH --constraint=p100
-#SBATCH --account=cs450-fall20
 #SBATCH --qos=gpu_class
 
 # load a module, for example
 module load cuda
+
+srun nvcc -arch=compute_60 -code=sm_60 -lcuda -Xcompiler -fopenmp lloyds_cuda.cu csvparser.c -o lloyds_cuda
 
 # run
 ./lloyds_cuda 5 "../data/pairs.csv" "," 0 0

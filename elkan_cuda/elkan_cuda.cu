@@ -160,9 +160,21 @@ int main(int argc, char *argv[]) {
   int elements_per_cluster[K];
   bool changes;
 
+  double *l_bounds = calloc(num_rows * K, sizeof(double));
+  double *u_bounds = calloc(num_rows, sizeof(double));
+  double *ctr_ctr_dists = malloc(K * K * sizeof(double));
+  double *drifts = malloc(K * sizeof(double));
+  bool ubound_not_tight = false;
+
+  // These need better names
+  double z;
+  double s[K];
+
   double *dev_data_matrix;
   double *dev_centers;
   double *dev_cluster_means;
+  double *dev_u_bounds;
+  double *dev_l_bounds;
   int *dev_elements_per_cluster;
   int *dev_clusterings;
   bool *dev_changes;
@@ -374,6 +386,7 @@ int main(int argc, char *argv[]) {
     transfer_time += omp_get_wtime() - t_transfer_start;
 
     t_cpu_start = omp_get_wtime();
+    #pragma omp parallel for
     for (int i = 0; i < K; i++) {
       vector_elementwise_avg(cluster_means + i * num_cols, cluster_means + i * num_cols, elements_per_cluster[i], num_cols);
     }
@@ -412,10 +425,6 @@ int main(int argc, char *argv[]) {
 
   printf("\nNum iterations: %d\n", num_iterations);
   printf("Time taken for %d clusters: %f seconds\n", K, tend - tstart);
-
-  for (i = 0; i < num_rows; i++) {
-    free(data_matrix[i]);
-  }
 
   free(data_matrix);
   free(clusterings);
