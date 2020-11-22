@@ -251,6 +251,7 @@ int main(int argc, char *argv[]) {
 
     num_iterations++;
 
+// TODO: should this be aligned with the memcopy approach used in elkan_cuda?
     // Capture current centers for later re-use
     #pragma omp parallel for private(i, j) shared(K, num_cols, prev_centers, centers)
     for (this_ctr = 0; this_ctr < K; this_ctr++) {
