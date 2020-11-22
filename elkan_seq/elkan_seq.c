@@ -184,7 +184,7 @@ int main(int argc, char *argv[]){
     u_bounds[this_pt] = INFINITY;
   }
 
-  while(num_iterations < 27) {
+  while( 1 ) {
     changes = false;
 
     // Calculate center-center distances
