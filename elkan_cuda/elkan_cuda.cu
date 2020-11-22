@@ -447,19 +447,19 @@ Reassigns centroids to their new cluster means
 */
 __global__ void reassign(int *dev_num_rows, int *dev_num_cols, int *dev_clusterings, double *dev_cluster_means,
   double *dev_data_matrix, int *dev_elements_per_cluster) {
-unsigned int tid = threadIdx.x + blockIdx.x * blockDim.x;
+  unsigned int tid = threadIdx.x + blockIdx.x * blockDim.x;
 
-if (tid >= *dev_num_rows) {
-return;
-}
+  if (tid >= *dev_num_rows) {
+    return;
+  }
 
-unsigned int cluster = dev_clusterings[tid];
+  unsigned int cluster = dev_clusterings[tid];
 
-for (unsigned int i = 0; i < *dev_num_cols; i++) {
-atomicAdd(&dev_cluster_means[cluster * *dev_num_cols + i], dev_data_matrix[tid * *dev_num_cols + i]);
-}
+  for (unsigned int i = 0; i < *dev_num_cols; i++) {
+    atomicAdd(&dev_cluster_means[cluster * *dev_num_cols + i], dev_data_matrix[tid * *dev_num_cols + i]);
+  }
 
-atomicAdd(&dev_elements_per_cluster[cluster], int(1));
+  atomicAdd(&dev_elements_per_cluster[cluster], int(1));
 }
 
 
@@ -467,6 +467,6 @@ atomicAdd(&dev_elements_per_cluster[cluster], int(1));
 Warms up the GPU so that timings are accurate/consistent
 */
 void warmUpGPU(){
-cudaDeviceSynchronize();
-return;
+  cudaDeviceSynchronize();
+  return;
 }

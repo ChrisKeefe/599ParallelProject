@@ -1,8 +1,7 @@
 #!/bin/bash
-#SBATCH --job-name=Q3
-#SBATCH --output=/scratch/crk239/599ParallelProj/lloyds_cuda_out.txt
+#SBATCH --job-name=l_cu_time
+#SBATCH --output=/scratch/als872/lloyds_cuda_out.txt
 #SBATCH --time=5:00
-#SBATCH --chdir=/scratch/crk239/599ParallelProj/lloyds_cuda
 #SBATCH --mem=10000
 #SBATCH -G 1
 #SBATCH --constraint=p100
