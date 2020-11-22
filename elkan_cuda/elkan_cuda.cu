@@ -57,8 +57,8 @@ int main(int argc, char *argv[]) {
   int i, j;
 
   if (argc < 6) {
-      printf("Incorrect number of args. Should be 5, received %d\n", argc - 1);
-      exit(1);
+    printf("Incorrect number of args. Should be 5, received %d\n", argc - 1);
+    exit(1);
   }
 
   int K = atoi(argv[1]);

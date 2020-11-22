@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=l_cu_time
-#SBATCH --output=/scratch/als872/599ParallelProj/lloyds_cuda_time.txt
+#SBATCH --output=/scratch/als872/lloyds_cuda_time.txt
 #SBATCH --time=5:00
 #SBATCH --mem=10000
 #SBATCH -G 1
