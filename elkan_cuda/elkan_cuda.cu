@@ -170,6 +170,10 @@ int main(int argc, char *argv[]) {
   double z;
   double s[K];
 
+  int this_ctr, this_pt;
+  double tmp_diff[num_cols];
+  double min_diff = INFINITY;
+
   double *dev_data_matrix;
   double *dev_centers;
   double *dev_prev_centers;
