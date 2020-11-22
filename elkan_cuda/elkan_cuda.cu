@@ -510,7 +510,9 @@ __global__ void adjust_bounds(double *dev_u_bounds, double *dev_l_bounds, double
                               double *dev_prev_centers, int *dev_clustering, double *dev_drifts,
                               int *dev_num_rows, int *dev_num_cols, int *dev_K) {
     unsigned int tid = threadIdx.x + blockIdx.x * blockDim.x;
-    if (tid >= *dev_num_rows) return;
+    if (tid >= *dev_num_rows) {
+      return;
+    }
 
     double tmp_diff[*dev_num_cols];
     // vector_sub(tmp_diff, dev_centers[dev_clusterings[tid]], dev_prev_centers[dev_clusterings[tid]], *dev_num_cols);
