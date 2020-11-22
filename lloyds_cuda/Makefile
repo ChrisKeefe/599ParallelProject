@@ -2,7 +2,6 @@ CC = nvcc
 # TODO: replace GPUCAP with architecture-specific values. 60 covers P100
 GPUCAP = 60
 ARCHFLAGS = -arch=compute_${GPUCAP} -code=sm_${GPUCAP}
-CFLAGS = -Wall
 LFLAGS = -lm -lcuda
 
 .phony = clean run test time
