@@ -287,15 +287,52 @@ int main(int argc, char *argv[]) {
     // Assign points to cluster centers
     // #################################
     // TODO: transfer data, implement and run assign_points kernel, time
+    // Assign points to cluster centers
+    #pragma omp parallel for private (this_pt, this_ctr, z, tmp_diff, ubound_not_tight) \
+      shared(num_rows, num_cols, l_bounds, u_bounds, s, clusterings, ctr_ctr_dists, centers, data_matrix, changes) schedule(dynamic)
+    for (this_pt = 0; this_pt < num_rows; this_pt++) {
+      if (u_bounds[this_pt] > s[clusterings[this_pt]]) {
+        ubound_not_tight = true;
 
+        for(this_ctr = 0; this_ctr < K; this_ctr++) {
+          z = max(l_bounds[this_pt * K + this_ctr],
+                  ctr_ctr_dists[clusterings[this_pt] * K + this_ctr] / 2);
+
+          if (this_ctr == clusterings[this_pt] || u_bounds[this_pt] <= z) {
+            continue;
+          }
+
+          if (ubound_not_tight) {
+            vector_sub(tmp_diff, data_matrix[this_pt], centers[clusterings[this_pt]], num_cols);
+            u_bounds[this_pt] = vector_L2_norm(tmp_diff, num_cols);
+            ubound_not_tight = false;
+
+            if (u_bounds[this_pt] <= z) {
+              continue;
+            }
+          }
+
+          vector_sub(tmp_diff, data_matrix[this_pt], centers[this_ctr], num_cols);
+          l_bounds[this_pt * K + this_ctr] = vector_L2_norm(tmp_diff, num_cols);
+          if(l_bounds[this_pt * K + this_ctr] < u_bounds[this_pt]) {
+            // NOTE: There is an acceptable data race on changes. Threads only ever
+            // set it to true; lost updates are inconsequential. No need to slow
+            // things down for safety.
+            changes = true;
+            clusterings[this_pt] = this_ctr;
+            u_bounds[this_pt] = l_bounds[this_pt * K + this_ctr];
+          }
+        }
+      }
+    }
 
     // ######################################################################
     // If we didn't change any cluster assignments, we've reached convergence
     // ######################################################################
-    errCode = cudaMemcpy(&changes, dev_changes, sizeof(bool), cudaMemcpyHostToDevice);
-    if (errCode != cudaSuccess) {
-      cout << "\nError: changes memcpy error with code " << errCode << endl;
-    }
+    // errCode = cudaMemcpy(&changes, dev_changes, sizeof(bool), cudaMemcpyHostToDevice);
+    // if (errCode != cudaSuccess) {
+    //   cout << "\nError: changes memcpy error with code " << errCode << endl;
+    // }
 
     if (!changes) {
       break;
