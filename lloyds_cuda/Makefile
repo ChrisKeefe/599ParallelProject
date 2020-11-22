@@ -8,7 +8,6 @@ LFLAGS = -lm -lcuda
 .phony = clean run test time
 
 lloyds_cuda:
-	module load cuda
 	${CC} ${ARCHFLAGS} ${CFLAGS} ${LFLAGS} lloyds_cuda.c csvparser.c -o lloyds_cuda
 
 run: lloyds_cuda

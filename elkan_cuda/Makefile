@@ -9,7 +9,6 @@ LFLAGS = -lm -lcuda
 .phony = clean run test time
 
 elkan_cuda:
-	module load cuda
 	${CC} ${ARCHFLAGS} ${CFLAGS} ${LFLAGS} elkan_cuda.c csvparser.c -o elkan_cuda
 
 run: elkan_cuda
