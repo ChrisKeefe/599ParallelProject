@@ -15,7 +15,7 @@ using namespace std;
 
 __global__ void adjust_bounds(double *dev_u_bounds, double *dev_l_bounds, double *dev_centers,
                               double *dev_prev_centers, int *dev_clusterings, double *dev_drifts,
-                              int *dev_num_rows, int *dev_num_cols, int *dev_K)
+                              int *dev_num_rows, int *dev_num_cols, int *dev_K);
 __global__ void reassign(int *dev_num_rows, int *dev_num_cols, int *dev_clusterings, double *dev_cluster_means,
                          double *dev_data_matrix, int *dev_elements_per_cluster);
 
