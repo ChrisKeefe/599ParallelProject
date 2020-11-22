@@ -472,13 +472,19 @@ int main(int argc, char *argv[]) {
       cout << "\nError: drifts memcpy error with code " << errCode << endl;
     }
 
-    temp = dev_centers;
-    dev_centers = dev_prev_centers;
-    dev_centers = temp;
+    // temp = dev_centers;
+    // dev_centers = dev_prev_centers;
+    // dev_centers = temp;
+
+    errCode = cudaMemcpy(dev_prev_centers, prev, sizeof(double) * K * num_cols, cudaMemcpyHostToDevice);
+    if (errCode != cudaSuccess) {
+      cout << "\nError: prev centers memcpy error with code " << errCode << endl;
+    }
+
 
     errCode = cudaMemcpy(dev_centers, centers, sizeof(double) * K * num_cols, cudaMemcpyHostToDevice);
     if (errCode != cudaSuccess) {
-      cout << "\nError: cemters memcpy error with code " << errCode << endl;
+      cout << "\nError: centers memcpy error with code " << errCode << endl;
     }
 
     adjust_bounds<<<totalBlocks, BLOCKSIZE>>>(dev_u_bounds, dev_l_bounds, dev_centers,
