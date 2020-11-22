@@ -476,6 +476,11 @@ int main(int argc, char *argv[]) {
     dev_centers = dev_prev_centers;
     dev_centers = temp;
 
+    errCode = cudaMemcpy(dev_centers, centers, sizeof(double) * K * num_cols, cudaMemcpyHostToDevice);
+    if (errCode != cudaSuccess) {
+      cout << "\nError: cemters memcpy error with code " << errCode << endl;
+    }
+
     adjust_bounds<<<totalBlocks, BLOCKSIZE>>>(dev_u_bounds, dev_l_bounds, dev_centers,
                                               dev_prev_centers, dev_clusterings, dev_drifts,
                                               dev_num_rows, dev_num_cols, dev_K);
