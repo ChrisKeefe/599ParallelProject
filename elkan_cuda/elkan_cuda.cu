@@ -471,7 +471,9 @@ int main(int argc, char *argv[]) {
     dev_centers = dev_prev_centers;
     dev_centers = temp;
 
-    adjust_bounds<<<totalBlocks, BLOCKSIZE>>>(dev_u_bounds, dev_l_bounds, dev_centers, dev_prev_centers, dev_clusterings, dev_drifts, dev_num_rows, dev_num_cols, dev_K);
+    adjust_bounds<<<totalBlocks, BLOCKSIZE>>>(dev_u_bounds, dev_l_bounds, dev_centers,
+                                              dev_prev_centers, dev_clusterings, dev_drifts,
+                                              dev_num_rows, dev_num_cols, dev_K);
     cudaDeviceSynchronize();
 
     errCode = cudaMemcpy(u_bounds, dev_u_bounds, sizeof(double) * num_cols, cudaMemcpyDeviceToHost);
@@ -514,13 +516,10 @@ __global__ void adjust_bounds(double *dev_u_bounds, double *dev_l_bounds, double
 
   if (tid >= *dev_num_rows) return;
 
-  double tmp_diff[(*dev_num_cols)];
-  for (int i = 0; i < *dev_num_cols; i++) {
-    tmp_diff[i] = dev_centers[dev_clusterings[tid]] - dev_prev_centers[dev_clusterings[tid]];
-  }
-
+  double temp;
   double vec_norm = 0;
   for (int i = 0; i < *dev_num_cols; i++) {
+    temp = dev_centers[dev_clusterings[tid]] - dev_prev_centers[dev_clusterings[tid]];
     vec_norm += tmp_diff[i] * tmp_diff[i];
   }
   dev_u_bounds[tid] += sqrt(vec_norm);
