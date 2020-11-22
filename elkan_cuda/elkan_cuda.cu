@@ -15,7 +15,8 @@ using namespace std;
 
 __global__ void elkan(int *dev_num_rows, int *dev_num_cols, double *dev_l_bounds,
                       double *dev_u_bounds, int *dev_clusterings, double *dev_ctr_ctr_dists,
-                      double *dev_centers, double *dev_data_matrix, bool *dev_changes);
+                      double *dev_centers, double *dev_data_matrix, bool *dev_changes, int *dev_K,
+                      double *dev_s);
 __global__ void adjust_bounds(double *dev_u_bounds, double *dev_l_bounds, double *dev_centers,
                               double *dev_prev_centers, int *dev_clusterings, double *dev_drifts,
                               int *dev_num_rows, int *dev_num_cols, int *dev_K);
@@ -378,7 +379,7 @@ int main(int argc, char *argv[]) {
     // Assign points to cluster centers
     elkan<<<totalBlocks, BLOCKSIZE>>>(dev_num_rows, dev_num_cols, dev_l_bounds, dev_u_bounds,
                                       dev_clusterings, dev_ctr_ctr_dists, dev_centers, dev_data_matrix,
-                                      dev_changes, dev_K);
+                                      dev_changes, dev_K, dev_s);
 
     // ######################################################################
     // If we didn't change any cluster assignments, we've reached convergence
@@ -490,7 +491,8 @@ int main(int argc, char *argv[]) {
 
 __global__ void elkan(int *dev_num_rows, int *dev_num_cols, double *dev_l_bounds,
                       double *dev_u_bounds, int *dev_clusterings, double *dev_ctr_ctr_dists,
-                      double *dev_centers, double *dev_data_matrix, bool *dev_changes, int *dev_K) {
+                      double *dev_centers, double *dev_data_matrix, bool *dev_changes, int *dev_K,
+                      double *dev_s) {
   unsigned int tid = threadIdx.x + blockIdx.x * blockDim.x;
 
   if (tid >= *dev_num_rows) return;
