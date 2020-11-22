@@ -13,9 +13,9 @@
 
 using namespace std;
 
-__global__ void adjust_bounds( double *dev_u_bounds, double *dev_l_bounds, double *dev_centers,
-                               double *dev_prev_centers, int *dev_clustering, double *dev_drifts,
-                               int *dev_num_rows, int *dev_num_cols, int *dev_K);
+__global__ void adjust_bounds(double *dev_u_bounds, double *dev_l_bounds, double *dev_centers,
+                              double *dev_prev_centers, int *dev_clusterings, double *dev_drifts,
+                              int *dev_num_rows, int *dev_num_cols, int *dev_K)
 __global__ void reassign(int *dev_num_rows, int *dev_num_cols, int *dev_clusterings, double *dev_cluster_means,
                          double *dev_data_matrix, int *dev_elements_per_cluster);
 
@@ -508,7 +508,7 @@ int main(int argc, char *argv[]) {
 Adjusts the upper and lower bounds to accomodate for centroid drift
 */
 __global__ void adjust_bounds(double *dev_u_bounds, double *dev_l_bounds, double *dev_centers,
-                              double *dev_prev_centers, int *dev_clustering, double *dev_drifts,
+                              double *dev_prev_centers, int *dev_clusterings, double *dev_drifts,
                               int *dev_num_rows, int *dev_num_cols, int *dev_K) {
   unsigned int tid = threadIdx.x + blockIdx.x * blockDim.x;
 
@@ -521,7 +521,7 @@ __global__ void adjust_bounds(double *dev_u_bounds, double *dev_l_bounds, double
 
   double vec_norm = 0;
   for (int i = 0; i < *dev_num_cols; i++) {
-    vec_norm += a[i] * a[i];
+    vec_norm += tmp_diff[i] * tmp_diff[i];
   }
   dev_u_bounds[tid] += sqrt(vec_norm);
 
