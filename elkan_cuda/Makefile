@@ -8,7 +8,7 @@ LFLAGS = -lm -lcuda
 .phony = clean run test time
 
 elkan_cuda:
-	${CC} ${ARCHFLAGS} ${CFLAGS} ${LFLAGS} elkan_cuda.c csvparser.c -o elkan_cuda
+	${CC} ${ARCHFLAGS} ${CFLAGS} ${LFLAGS} elkan_cuda.cu csvparser.c -o elkan_cuda
 
 run: elkan_cuda
 	./jobscripts/elkan_cuda_run.sh
