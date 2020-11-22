@@ -45,6 +45,21 @@ void vector_elementwise_avg(double *dst, double *a, int denominator, int length)
   }
 }
 
+double vector_L2_norm(double *a, int length) {
+  double vec_norm = 0;
+
+  for (int i = 0; i < length; i++) {
+    vec_norm += a[i] * a[i];
+  }
+
+  return sqrt(vec_norm);
+}
+
+void vector_sub(double *dst, double *a, double *b, int length) {
+  for (int i = 0; i < length; i++) {
+    dst[i] = a[i] - b[i];
+  }
+}
 
 // Program should take K, a data set (.csv), a delimiter,
 // a binary flag data_contains_header, and a binary flag to drop labels
