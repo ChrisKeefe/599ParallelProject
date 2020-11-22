@@ -160,10 +160,10 @@ int main(int argc, char *argv[]) {
   int elements_per_cluster[K];
   bool changes;
 
-  double *l_bounds = calloc(num_rows * K, sizeof(double));
-  double *u_bounds = calloc(num_rows, sizeof(double));
-  double *ctr_ctr_dists = malloc(K * K * sizeof(double));
-  double *drifts = malloc(K * sizeof(double));
+  double *l_bounds = (double *)calloc(num_rows * K, sizeof(double));
+  double *u_bounds = (double *)calloc(num_rows, sizeof(double));
+  double *ctr_ctr_dists = (double *)malloc(K * K * sizeof(double));
+  double *drifts = (double *)malloc(K * sizeof(double));
   bool ubound_not_tight = false;
 
   // These need better names
