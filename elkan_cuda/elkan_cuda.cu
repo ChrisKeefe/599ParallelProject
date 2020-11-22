@@ -315,7 +315,8 @@ int main(int argc, char *argv[]) {
     t_transfer_start = omp_get_wtime();
     errCode = cudaMemcpy(dev_changes, &changes, sizeof(bool), cudaMemcpyHostToDevice);
     if (errCode != cudaSuccess) {
-    cout << "\nError: changes memcpy error with code " << errCode << endl;
+      cout << "\nError: changes memcpy error with code " << errCode << endl;
+    }
     transfer_time += omp_get_wtime() - t_transfer_start;
 
     // ###############################################################################
@@ -554,7 +555,7 @@ __global__ void reassign(int *dev_num_rows, int *dev_num_cols, int *dev_clusteri
 /*
 Warms up the GPU so that timings are accurate/consistent
 */
-void warmUpGPU(){
+void warmUpGPU() {
   cudaDeviceSynchronize();
   return;
 }
