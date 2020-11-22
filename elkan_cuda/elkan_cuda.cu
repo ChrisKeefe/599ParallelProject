@@ -309,14 +309,19 @@ int main(int argc, char *argv[]) {
   // TODO: I suspect we're going to need additional memory allocations:
   // u_bound, l_bound, s, z, drifts, ctr_ctr_dists, prev_clousterings, bound_not_tight?
 
+  #pragma omp parallel for private(this_pt) shared(num_rows, u_bounds)
+  for (this_pt = 0; this_pt < num_rows; this_pt++) {
+    u_bounds[this_pt] = INFINITY;
+  }
+
   while (1) {
     changes = false;
     // send changes flag to GPU and time the transfer
     t_transfer_start = omp_get_wtime();
-    errCode = cudaMemcpy(dev_changes, &changes, sizeof(bool), cudaMemcpyHostToDevice);
-    if (errCode != cudaSuccess) {
-      cout << "\nError: changes memcpy error with code " << errCode << endl;
-    }
+    // errCode = cudaMemcpy(dev_changes, &changes, sizeof(bool), cudaMemcpyHostToDevice);
+    // if (errCode != cudaSuccess) {
+    //   cout << "\nError: changes memcpy error with code " << errCode << endl;
+    // }
     transfer_time += omp_get_wtime() - t_transfer_start;
 
     // ###############################################################################
