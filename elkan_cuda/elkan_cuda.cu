@@ -171,7 +171,7 @@ int main(int argc, char *argv[]) {
 
   int num_iterations = 0;
   int *clusterings = (int *)malloc(num_rows * sizeof(int));
-  double cluster_means[num_cols * K];
+  double *cluster_means = (double *)malloc(num_cols * K * sizeof(double));
   int elements_per_cluster[K];
   bool changes;
 
@@ -325,7 +325,7 @@ int main(int argc, char *argv[]) {
         shared(ctr_ctr_dists, centers, num_cols)
     for (i = 0; i < K; i++) {
       for (j = 0; j < K; j++) {
-        vector_sub(tmp_diff, centers[i], centers[j], num_cols);
+        vector_sub(tmp_diff, &centers[i], &centers[j], num_cols);
         ctr_ctr_dists[i * K + j] = vector_L2_norm(tmp_diff, num_cols);
 
         if (ctr_ctr_dists[i * K + j] < min_diff) {
@@ -355,7 +355,7 @@ int main(int argc, char *argv[]) {
           }
 
           if (ubound_not_tight) {
-            vector_sub(tmp_diff, data_matrix[this_pt], centers[clusterings[this_pt]], num_cols);
+            vector_sub(tmp_diff, &data_matrix[this_pt], &centers[clusterings[this_pt]], num_cols);
             u_bounds[this_pt] = vector_L2_norm(tmp_diff, num_cols);
             ubound_not_tight = false;
 
@@ -364,7 +364,7 @@ int main(int argc, char *argv[]) {
             }
           }
 
-          vector_sub(tmp_diff, data_matrix[this_pt], centers[this_ctr], num_cols);
+          vector_sub(tmp_diff, &data_matrix[this_pt], &centers[this_ctr], num_cols);
           l_bounds[this_pt * K + this_ctr] = vector_L2_norm(tmp_diff, num_cols);
           if(l_bounds[this_pt * K + this_ctr] < u_bounds[this_pt]) {
             // NOTE: There is an acceptable data race on changes. Threads only ever
@@ -443,7 +443,7 @@ int main(int argc, char *argv[]) {
     #pragma omp parallel for private(this_ctr, tmp_diff) \
             shared(centers, prev_centers, num_cols, drifts)
     for (this_ctr = 0; this_ctr < K; this_ctr++) {
-      vector_sub(tmp_diff, centers[this_ctr], prev_centers[this_ctr], num_cols);
+      vector_sub(tmp_diff, &centers[this_ctr], &prev_centers[this_ctr], num_cols);
       drifts[this_ctr] = vector_L2_norm(tmp_diff, num_cols);
     }
 
@@ -461,7 +461,7 @@ int main(int argc, char *argv[]) {
       cout << "\nError: l bounds memcpy error with code " << errCode << endl;
     }
 
-    errCode = cudaMemcpy(dev_drifts, drifs, sizeof(double) * K, cudaMemcpyHostToDevice);
+    errCode = cudaMemcpy(dev_drifts, drifts, sizeof(double) * K, cudaMemcpyHostToDevice);
     if (errCode != cudaSuccess) {
       cout << "\nError: drifts memcpy error with code " << errCode << endl;
     }
@@ -470,7 +470,7 @@ int main(int argc, char *argv[]) {
     dev_centers = dev_prev_centers;
     dev_centers = temp;
 
-    adjust_bounds<<<totalBlocks, BLOCKSIZE>>>(dev_u_bounds, dev_l_bounds, dev_centers, dev_prev_centers, dev_clustering, dev_drifts, dev_num_rows, dev_num_cols, dev_K);
+    adjust_bounds<<<totalBlocks, BLOCKSIZE>>>(dev_u_bounds, dev_l_bounds, dev_centers, dev_prev_centers, dev_clusterings, dev_drifts, dev_num_rows, dev_num_cols, dev_K);
     cudaDeviceSynchronize();
 
     errCode = cudaMemcpy(u_bounds, dev_u_bounds, sizeof(double) * num_cols, cudaMemcpyDeviceToHost);
@@ -482,20 +482,20 @@ int main(int argc, char *argv[]) {
     if (errCode != cudaSuccess) {
       cout << "\nError: getting l bounds from GPU error with code " << errCode << endl;
     }
-    // TODO: Please double-check the code in this guy!
   }
 
-  //  work on CPU
+  double tend = omp_get_wtime();
+
   printf("\nFinal cluster centers:\n");
   for (i = 0; i < K; i++) {
     for (j = 0; j < num_cols; j++) {
-      printf("%f ", centers[i][j]);
+      printf("%f ", centers[i * num_cols + j]);
     }
     printf("\n");
   }
 
   printf("\nNum iterations: %d\n", num_iterations);
-  printf("Time taken for %d clusters: %f seconds\n", K, tend - tstart);
+  printf("Time taken for %d clusters: %f seconds\n", K, tend - t_start);
 
   free(data_matrix);
   free(clusterings);
