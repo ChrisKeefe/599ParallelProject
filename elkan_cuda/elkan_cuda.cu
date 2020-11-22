@@ -14,7 +14,7 @@
 using namespace std;
 
 __global__ void elkan(int *dev_num_rows, int *dev_num_cols, double *dev_l_bounds,
-                      double *dev_u_bounds, double *dev_clusterings, double *dev_ctr_ctr_dists,
+                      double *dev_u_bounds, int *dev_clusterings, double *dev_ctr_ctr_dists,
                       double *dev_centers, double *dev_data_matrix, bool *dev_changes);
 __global__ void adjust_bounds(double *dev_u_bounds, double *dev_l_bounds, double *dev_centers,
                               double *dev_prev_centers, int *dev_clusterings, double *dev_drifts,
@@ -184,7 +184,6 @@ int main(int argc, char *argv[]) {
   double *drifts = (double *)malloc(K * sizeof(double));
 
   // These need better names
-  double z;
   double s[K];
 
   int this_ctr, this_pt;
@@ -490,12 +489,13 @@ int main(int argc, char *argv[]) {
 
 
 __global__ void elkan(int *dev_num_rows, int *dev_num_cols, double *dev_l_bounds,
-                      double *dev_u_bounds, double *dev_clusterings, double *dev_ctr_ctr_dists,
+                      double *dev_u_bounds, int *dev_clusterings, double *dev_ctr_ctr_dists,
                       double *dev_centers, double *dev_data_matrix, bool *dev_changes, int *dev_K) {
   unsigned int tid = threadIdx.x + blockIdx.x * blockDim.x;
 
   if (tid >= *dev_num_rows) return;
 
+  double z;
   bool ubound_not_tight;
   double temp;
   double vec_norm = 0;
@@ -531,8 +531,8 @@ __global__ void elkan(int *dev_num_rows, int *dev_num_cols, double *dev_l_bounds
                dev_centers[this_ctr * *dev_num_rows + i];
         vec_norm += temp * temp;
       }
-      dev_l_bounds[tid * *dev_K + this_ctr] = sqrts(vec_norm);
-      if(l_bounds[tid * *dev_K + this_ctr] < dev_u_bounds[tid]) {
+      dev_l_bounds[tid * *dev_K + this_ctr] = sqrt(vec_norm);
+      if(dev_l_bounds[tid * *dev_K + this_ctr] < dev_u_bounds[tid]) {
         // NOTE: There is an acceptable data race on changes. Threads only ever
         // set it to true; lost updates are inconsequential. No need to slow
         // things down for safety.
