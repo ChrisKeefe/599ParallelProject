@@ -175,6 +175,7 @@ int main(int argc, char *argv[]) {
   double *dev_cluster_means;
   double *dev_u_bounds;
   double *dev_l_bounds;
+  double *dev_drifts;
   int *dev_elements_per_cluster;
   int *dev_clusterings;
   bool *dev_changes;

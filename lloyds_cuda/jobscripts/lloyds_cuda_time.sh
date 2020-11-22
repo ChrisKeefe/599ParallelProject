@@ -13,7 +13,7 @@ module load cuda
 srun nvcc -arch=compute_60 -code=sm_60 -lcuda -Xcompiler -fopenmp lloyds_cuda.cu csvparser.c -o lloyds_cuda
 
 # run
-./lloyds_cuda 5 "../data/pairs.csv" "," 0 0
-./lloyds_cuda 10 "../data/pairs.csv" "," 0 0
-./lloyds_cuda 15 "../data/pairs.csv" "," 0 0
-./lloyds_cuda 25 "../data/pairs.csv" "," 0 0
+srun ./lloyds_cuda 5 "../data/pairs.csv" "," 0 0
+srun ./lloyds_cuda 10 "../data/pairs.csv" "," 0 0
+srun ./lloyds_cuda 15 "../data/pairs.csv" "," 0 0
+srun ./lloyds_cuda 25 "../data/pairs.csv" "," 0 0
