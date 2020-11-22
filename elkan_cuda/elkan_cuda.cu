@@ -509,28 +509,26 @@ Adjusts the upper and lower bounds to accomodate for centroid drift
 __global__ void adjust_bounds(double *dev_u_bounds, double *dev_l_bounds, double *dev_centers,
                               double *dev_prev_centers, int *dev_clustering, double *dev_drifts,
                               int *dev_num_rows, int *dev_num_cols, int *dev_K) {
-    unsigned int tid = threadIdx.x + blockIdx.x * blockDim.x;
-    if (tid >= *dev_num_rows) {
-      return;
-    }
+  unsigned int tid = threadIdx.x + blockIdx.x * blockDim.x;
 
-    double tmp_diff[*dev_num_cols];
-    // vector_sub(tmp_diff, dev_centers[dev_clusterings[tid]], dev_prev_centers[dev_clusterings[tid]], *dev_num_cols);
-    for (int i = 0; i < *dev_num_cols; i++) {
-      tmp_diff[i] = dev_centers[dev_clusterings[tid]] - dev_prev_centers[dev_clusterings[tid]];
-    }
+  if (tid >= *dev_num_rows) return;
 
-    double vec_norm = 0;
-    for (int i = 0; i < *dev_num_cols; i++) {
-      vec_norm += a[i] * a[i];
-    }
-    dev_u_bounds[tid] += sqrt(vec_norm);
+  double tmp_diff[*dev_num_cols];
+  for (int i = 0; i < *dev_num_cols; i++) {
+    tmp_diff[i] = dev_centers[dev_clusterings[tid]] - dev_prev_centers[dev_clusterings[tid]];
+  }
 
-    for (int this_ctr = 0; this_ctr < *dev_K; this_ctr++) {
-      dev_l_bounds[tid * (*dev_K) + this_ctr] -= dev_drifts[this_ctr];
-    }
+  double vec_norm = 0;
+  for (int i = 0; i < *dev_num_cols; i++) {
+    vec_norm += a[i] * a[i];
+  }
+  dev_u_bounds[tid] += sqrt(vec_norm);
+
+  for (int this_ctr = 0; this_ctr < *dev_K; this_ctr++) {
+    dev_l_bounds[tid * (*dev_K) + this_ctr] -= dev_drifts[this_ctr];
   }
 }
+
 
 /*
 Reassigns centroids to their new cluster means
