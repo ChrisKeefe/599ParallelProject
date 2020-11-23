@@ -339,6 +339,11 @@ int main(int argc, char *argv[]) {
     u_bounds[this_pt] = INFINITY;
   }
 
+  errCode = cudaMemset(dev_clusterings, 0, num_rows * sizeof(int));
+  if (errCode != cudaSuccess) {
+    cout << "\nError: memsetting cluster means error with code " << errCode << endl;
+  }
+
   while (1) {
     changes = false;
     // send changes flag to GPU and time the transfer
