@@ -465,7 +465,7 @@ int main(int argc, char *argv[]) {
       cout << "\nError: centers memcpy error with code " << errCode << endl;
     }
 
-    errCode = cudaMemcpy(dev_prev_centers, prev_centers, sizeof(double) * K * num_cols, cudaMemcpyHostToDevice);
+    errCode = cudaMemcpy(dev_prev_centers, &prev_centers, sizeof(double) * K * num_cols, cudaMemcpyHostToDevice);
     if (errCode != cudaSuccess) {
       cout << "\nError: prev centers memcpy error with code " << errCode << endl;
     }
