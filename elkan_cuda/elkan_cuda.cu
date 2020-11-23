@@ -551,13 +551,6 @@ __global__ void elkan(int *dev_num_rows, int *dev_num_cols, double *dev_l_bounds
   double vec_norm;
   int i = 0;
 
-  if(tid == 0) {
-    for (int i = 0; i < *dev_num_rows; i++) {
-      printf("%d ", dev_clusterings[i]);
-    }
-    printf("\n");
-  }
-
   if (dev_u_bounds[tid] > dev_s[dev_clusterings[tid]]) {
     ubound_not_tight = true;
 
@@ -566,6 +559,9 @@ __global__ void elkan(int *dev_num_rows, int *dev_num_cols, double *dev_l_bounds
               dev_ctr_ctr_dists[dev_clusterings[tid] * *dev_K + this_ctr] / 2);
 
       if (this_ctr == dev_clusterings[tid] || dev_u_bounds[tid] <= z) {
+        if (this_ctr == 2) {
+          printf("%d\n%f\n%f\n%f\n\n", tid, dev_clusterings[tid], dev_u_bounds[tid], z);
+        }
         continue;
       }
 
@@ -580,6 +576,9 @@ __global__ void elkan(int *dev_num_rows, int *dev_num_cols, double *dev_l_bounds
         ubound_not_tight = false;
 
         if (dev_u_bounds[tid] <= z) {
+          if (this_ctr == 2) {
+            printf("%d\n%f\n%f\n\n", tid, dev_u_bounds[tid], z);
+          }
           continue;
         }
       }
