@@ -368,6 +368,18 @@ int main(int argc, char *argv[]) {
       s[i] = min_diff / 2;
     }
 
+    for (int i = 0; i < K; i++) {
+      for (int j = 0; j < K; j++) {
+        printf("%f ", ctr_ctr_dists[i * K + j]);
+      }
+      printf("\n");
+    }
+    printf("\n");
+    for (int i = 0; i < K; i++) {
+      printf("%f\n", s[i]);
+    }
+    printf("\n");
+
     t_transfer_start = omp_get_wtime();
     errCode = cudaMemcpy(dev_changes, &changes, sizeof(bool), cudaMemcpyHostToDevice);
     if (errCode != cudaSuccess) {
@@ -553,6 +565,20 @@ __global__ void elkan(int *dev_num_rows, int *dev_num_cols, double *dev_l_bounds
   double temp;
   double vec_norm;
   int i = 0;
+
+  if(tid == 0) {
+    for (int i = 0; i < *dev_K; i++) {
+      for (int j = 0; j < *dev_K; j++) {
+        printf("%f ", dev_ctr_ctr_dists[i * *dev_K + j]);
+      }
+      printf("\n");
+    }
+    printf("\n");
+    for (int i = 0; i < *dev_K; i++) {
+      printf("%f\n", *s[i]);
+    }
+    printf("\n");
+  }
 
   if (dev_u_bounds[tid] > dev_s[dev_clusterings[tid]]) {
     ubound_not_tight = true;
