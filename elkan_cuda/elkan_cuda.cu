@@ -624,6 +624,9 @@ __global__ void reassign(int *dev_num_rows, int *dev_num_cols, int *dev_clusteri
   }
 
   unsigned int cluster = dev_clusterings[tid];
+  if (cluster == 3) {
+    printf("\n\n\nHERE %f %f\n\n\n", dev_data_matrix[tid * *dev_num_cols + 0], dev_data_matrix[tid * *dev_num_cols + 1]);
+  }
 
   for (unsigned int i = 0; i < *dev_num_cols; i++) {
     atomicAdd(&dev_cluster_means[cluster * *dev_num_cols + i], dev_data_matrix[tid * *dev_num_cols + i]);
