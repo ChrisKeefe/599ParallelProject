@@ -170,7 +170,7 @@ int main(int argc, char *argv[]) {
   printf("\n");
 
   // Create vars and allocate data for GPU
-  const unsigned int totalBlocks = ceil(nvector_L2_normum_rows * 1.0 / BLOCKSIZE);
+  const unsigned int totalBlocks = ceil(num_rows * 1.0 / BLOCKSIZE);
   warmUpGPU();
 
   int num_iterations = 0;
@@ -357,7 +357,7 @@ int main(int argc, char *argv[]) {
       min_diff = INFINITY;
 
       for (j = 0; j < K; j++) {
-        vector_sub(tmp_diff, centers[i], centers[j], num_cols);
+        vector_sub(tmp_diff, centers[i * num_rows], centers[j * num_rows], num_cols);
         ctr_ctr_dists[i * K + j] = vector_L2_norm(tmp_diff, num_cols);
 
         if (ctr_ctr_dists[i * K + j] < min_diff && i != j) {
