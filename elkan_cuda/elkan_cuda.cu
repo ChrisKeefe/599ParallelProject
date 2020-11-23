@@ -444,6 +444,14 @@ int main(int argc, char *argv[]) {
     }
     transfer_time += omp_get_wtime() - t_transfer_start;
 
+  printf("\nCluster meana:\n");
+  for (i = 0; i < K; i++) {
+    for (j = 0; j < num_cols; j++) {
+      printf("%f ", cluster_means[i * num_cols + j]);
+    }
+    printf("\n");
+  }
+
     t_cpu_start = omp_get_wtime();
     #pragma omp parallel for
     for (int i = 0; i < K; i++) {
