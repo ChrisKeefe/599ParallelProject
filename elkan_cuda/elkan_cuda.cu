@@ -380,11 +380,12 @@ int main(int argc, char *argv[]) {
     elkan<<<totalBlocks, BLOCKSIZE>>>(dev_num_rows, dev_num_cols, dev_l_bounds, dev_u_bounds,
                                       dev_clusterings, dev_ctr_ctr_dists, dev_centers, dev_data_matrix,
                                       dev_changes, dev_K, dev_s);
+    cudaDeviceSynchronize();
 
     // ######################################################################
     // If we didn't change any cluster assignments, we've reached convergence
     // ######################################################################
-    errCode = cudaMemcpy(&changes, dev_changes, sizeof(bool), cudaMemcpyHostToDevice);
+    errCode = cudaMemcpy(&changes, dev_changes, sizeof(bool), cudaMemcpyDeviceToHost);
     if (errCode != cudaSuccess) {
       cout << "\nError: changes memcpy error with code " << errCode << endl;
     }
