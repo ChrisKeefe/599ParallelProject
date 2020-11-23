@@ -244,6 +244,11 @@ int main(int argc, char *argv[]) {
     cout << "\nError: centers alloc error with code " << errCode << endl;
   }
 
+  errCode = cudaMemcpy(dev_centers, centers, sizeof(double) * K * num_cols, cudaMemcpyHostToDevice);
+  if (errCode != cudaSuccess) {
+    cout << "\nError: centers memcpy error with code " << errCode << endl;
+  }
+
   errCode = cudaMalloc(&dev_clusterings, sizeof(int) * num_rows);
   if (errCode != cudaSuccess) {
     cout << "\nError: clusterings alloc error with code " << errCode << endl;
@@ -380,11 +385,6 @@ int main(int argc, char *argv[]) {
     if (errCode != cudaSuccess) {
       cout << "\nError: l_bounds memcpy error with code " << errCode << endl;
     }
-
-    errCode = cudaMemcpy(dev_centers, centers, sizeof(double) * K * num_cols, cudaMemcpyHostToDevice);
-    if (errCode != cudaSuccess) {
-      cout << "\nError: centers memcpy error with code " << errCode << endl;
-    }
     transfer_time += omp_get_wtime() - t_transfer_start;
 
     // #################################
@@ -456,6 +456,15 @@ int main(int argc, char *argv[]) {
     cluster_means = temp;
     cpu_time += omp_get_wtime() - t_cpu_start;
 
+  printf("\nFinal cluster centers:\n");
+  for (i = 0; i < K; i++) {
+    for (j = 0; j < num_cols; j++) {
+      printf("%f ", centers[i * num_cols + j]);
+    }
+    printf("\n");
+  }
+
+
     // ###########################################
     // Compute centroid drift since last iteration
     // ###########################################
@@ -475,10 +484,10 @@ int main(int argc, char *argv[]) {
       cout << "\nError: drifts memcpy error with code " << errCode << endl;
     }
 
-    // errCode = cudaMemcpy(dev_centers, centers, sizeof(double) * K * num_cols, cudaMemcpyHostToDevice);
-    // if (errCode != cudaSuccess) {
-    //   cout << "\nError: centers memcpy error with code " << errCode << endl;
-    // }
+    errCode = cudaMemcpy(dev_centers, centers, sizeof(double) * K * num_cols, cudaMemcpyHostToDevice);
+    if (errCode != cudaSuccess) {
+      cout << "\nError: centers memcpy error with code " << errCode << endl;
+    }
 
     errCode = cudaMemcpy(dev_prev_centers, prev_centers, sizeof(double) * K * num_cols, cudaMemcpyHostToDevice);
     if (errCode != cudaSuccess) {
