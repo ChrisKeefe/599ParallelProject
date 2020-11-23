@@ -402,10 +402,12 @@ int main(int argc, char *argv[]) {
     // #################################
     // TODO: transfer data, implement and run assign_points kernel, time
     // Assign points to cluster centers
+    kernel_start = omp_get_wtime();
     elkan<<<totalBlocks, BLOCKSIZE>>>(dev_num_rows, dev_num_cols, dev_l_bounds, dev_u_bounds,
                                       dev_clusterings, dev_ctr_ctr_dists, dev_centers, dev_data_matrix,
                                       dev_changes, dev_K, dev_s);
     cudaDeviceSynchronize();
+    kernel_time += omp_get_wtime() - kernel_start;
 
     // ######################################################################
     // If we didn't change any cluster assignments, we've reached convergence
@@ -495,10 +497,12 @@ int main(int argc, char *argv[]) {
       cout << "\nError: prev centers memcpy error with code " << errCode << endl;
     }
 
+    kernel_start = omp_get_wtime();
     adjust_bounds<<<totalBlocks, BLOCKSIZE>>>(dev_u_bounds, dev_l_bounds, dev_centers,
                                               dev_prev_centers, dev_clusterings, dev_drifts,
                                               dev_num_rows, dev_num_cols, dev_K);
     cudaDeviceSynchronize();
+    kernel_time += omp_get_wtime() - kernel_start;
   }
 
   double tend = omp_get_wtime();
