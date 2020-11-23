@@ -575,7 +575,7 @@ __global__ void elkan(int *dev_num_rows, int *dev_num_cols, double *dev_l_bounds
     }
     printf("\n");
     for (int i = 0; i < *dev_K; i++) {
-      printf("%f\n", *s[i]);
+      printf("%f\n", dev_s[i]);
     }
     printf("\n");
   }
