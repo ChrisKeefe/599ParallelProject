@@ -412,7 +412,7 @@ int main(int argc, char *argv[]) {
     num_iterations++;
 
     // Capture current centers for later re-use
-    memcpy(prev_centers, centers, num_cols * K);
+    memcpy(prev_centers, centers, num_cols * K * sizeof(double));
 
     // #######################################
     // Find cluster means and reassign centers
@@ -444,7 +444,7 @@ int main(int argc, char *argv[]) {
     }
     transfer_time += omp_get_wtime() - t_transfer_start;
 
-  printf("\nCluster meana:\n");
+  printf("\nCluster means:\n");
   for (i = 0; i < K; i++) {
     for (j = 0; j < num_cols; j++) {
       printf("%f ", cluster_means[i * num_cols + j]);
@@ -616,7 +616,7 @@ __global__ void adjust_bounds(double *dev_u_bounds, double *dev_l_bounds, double
 Reassigns centroids to their new cluster means
 */
 __global__ void reassign(int *dev_num_rows, int *dev_num_cols, int *dev_clusterings, double *dev_cluster_means,
-  double *dev_data_matrix, int *dev_elements_per_cluster) {
+                         double *dev_data_matrix, int *dev_elements_per_cluster) {
   unsigned int tid = threadIdx.x + blockIdx.x * blockDim.x;
 
   if (tid >= *dev_num_rows) {
