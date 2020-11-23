@@ -174,7 +174,7 @@ int main(int argc, char *argv[]) {
   warmUpGPU();
 
   int num_iterations = 0;
-  int *clusterings = (int *)malloc(num_rows * sizeof(int));
+  int *clusterings = (int *)calloc(num_rows, sizeof(int));
   double *cluster_means = (double *)malloc(num_cols * K * sizeof(double));
   int elements_per_cluster[K];
   bool changes;
@@ -322,6 +322,11 @@ int main(int argc, char *argv[]) {
   errCode = cudaMalloc(&dev_ctr_ctr_dists, sizeof(double) * K * K);
   if (errCode != cudaSuccess) {
     cout << "\nError: ctr ctr dists alloc error with code " << errCode << endl;
+  }
+
+  errCode = cudaMemset(dev_clusterings, 0, num_rows * sizeof(int));
+  if (errCode != cudaSuccess) {
+    cout << "\nError: memsetting cluster means error with code " << errCode << endl;
   }
 
   transfer_time += omp_get_wtime() - t_transfer_start;
