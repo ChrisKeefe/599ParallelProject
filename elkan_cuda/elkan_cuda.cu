@@ -392,6 +392,10 @@ int main(int argc, char *argv[]) {
     // #################################
     // TODO: transfer data, implement and run assign_points kernel, time
     // Assign points to cluster centers
+    for (int i = 0; i < num_rows; i++) {
+      printf("%d ", clusterings[i]);
+    }
+    printf("\n\n");
     elkan<<<totalBlocks, BLOCKSIZE>>>(dev_num_rows, dev_num_cols, dev_l_bounds, dev_u_bounds,
                                       dev_clusterings, dev_ctr_ctr_dists, dev_centers, dev_data_matrix,
                                       dev_changes, dev_K, dev_s);
@@ -543,7 +547,10 @@ __global__ void elkan(int *dev_num_rows, int *dev_num_cols, double *dev_l_bounds
   int i = 0;
 
   if(tid == 0) {
-    printf("\n\n\nThe cluster %f %f\n\n\n", dev_centers[2 * *dev_num_cols], dev_centers[2 * *dev_num_cols + 1]);
+    for (int i = 0; i < *dev_num_rows; i++) {
+      printf("%d ", dev_clusterings[i]);
+    }
+    printf("\n");
   }
 
   if (dev_u_bounds[tid] > dev_s[dev_clusterings[tid]]) {
