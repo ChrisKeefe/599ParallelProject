@@ -560,7 +560,7 @@ __global__ void elkan(int *dev_num_rows, int *dev_num_cols, double *dev_l_bounds
 
       if (this_ctr == dev_clusterings[tid] || dev_u_bounds[tid] <= z) {
         if (this_ctr == 2) {
-          printf("%d\n%f\n%f\n%f\n\n", tid, dev_clusterings[tid], dev_u_bounds[tid], z);
+          printf("tid %d\ncluster %d\nu_bound %f\nz %f\n\n", tid, dev_clusterings[tid], dev_u_bounds[tid], z);
         }
         continue;
       }
@@ -577,7 +577,7 @@ __global__ void elkan(int *dev_num_rows, int *dev_num_cols, double *dev_l_bounds
 
         if (dev_u_bounds[tid] <= z) {
           if (this_ctr == 2) {
-            printf("%d\n%f\n%f\n\n", tid, dev_u_bounds[tid], z);
+            printf("tid %d\nu bound %f\nz %f\n\n", tid, dev_u_bounds[tid], z);
           }
           continue;
         }
