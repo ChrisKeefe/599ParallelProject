@@ -475,10 +475,10 @@ int main(int argc, char *argv[]) {
       cout << "\nError: drifts memcpy error with code " << errCode << endl;
     }
 
-    errCode = cudaMemcpy(dev_centers, centers, sizeof(double) * K * num_cols, cudaMemcpyHostToDevice);
-    if (errCode != cudaSuccess) {
-      cout << "\nError: centers memcpy error with code " << errCode << endl;
-    }
+    // errCode = cudaMemcpy(dev_centers, centers, sizeof(double) * K * num_cols, cudaMemcpyHostToDevice);
+    // if (errCode != cudaSuccess) {
+    //   cout << "\nError: centers memcpy error with code " << errCode << endl;
+    // }
 
     errCode = cudaMemcpy(dev_prev_centers, prev_centers, sizeof(double) * K * num_cols, cudaMemcpyHostToDevice);
     if (errCode != cudaSuccess) {
