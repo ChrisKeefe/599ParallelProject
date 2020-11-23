@@ -517,13 +517,15 @@ __global__ void elkan(int *dev_num_rows, int *dev_num_cols, double *dev_l_bounds
   double z;
   bool ubound_not_tight;
   double temp;
-  double vec_norm = 0;
+  double vec_norm;
   int i = 0;
 
   if (dev_u_bounds[tid] > dev_s[dev_clusterings[tid]]) {
     ubound_not_tight = true;
 
     for(int this_ctr = 0; this_ctr < *dev_K; this_ctr++) {
+      vec_norm = 0;
+
       z = max(dev_l_bounds[tid * *dev_K + this_ctr],
               dev_ctr_ctr_dists[dev_clusterings[tid] * *dev_K + this_ctr] / 2);
 
