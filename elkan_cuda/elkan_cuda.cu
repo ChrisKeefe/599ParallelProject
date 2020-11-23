@@ -545,6 +545,7 @@ __global__ void elkan(int *dev_num_rows, int *dev_num_cols, double *dev_l_bounds
         // NOTE: There is an acceptable data race on changes. Threads only ever
         // set it to true; lost updates are inconsequential. No need to slow
         // things down for safety.
+        printf("HERE\n");
         *dev_changes = true;
         dev_clusterings[tid] = this_ctr;
         dev_u_bounds[tid] = dev_l_bounds[tid * *dev_K + this_ctr];
