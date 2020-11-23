@@ -534,7 +534,7 @@ __global__ void elkan(int *dev_num_rows, int *dev_num_cols, double *dev_l_bounds
       if (ubound_not_tight) {
         for (i = 0; i < *dev_num_cols; i++) {
           temp = dev_data_matrix[tid * *dev_num_cols + i] -
-                 dev_centers[dev_clusterings[tid] * *dev_num_vols + i];
+                 dev_centers[dev_clusterings[tid] * *dev_num_cols + i];
           vec_norm += temp * temp;
         }
         dev_u_bounds[tid] = sqrt(vec_norm);
