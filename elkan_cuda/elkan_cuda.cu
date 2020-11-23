@@ -380,6 +380,11 @@ int main(int argc, char *argv[]) {
     if (errCode != cudaSuccess) {
       cout << "\nError: l_bounds memcpy error with code " << errCode << endl;
     }
+
+    errCode = cudaMemcpy(dev_centers, centers, sizeof(double) * K * num_cols, cudaMemcpyHostToDevice);
+    if (errCode != cudaSuccess) {
+      cout << "\nError: centers memcpy error with code " << errCode << endl;
+    }
     transfer_time += omp_get_wtime() - t_transfer_start;
 
     // #################################
