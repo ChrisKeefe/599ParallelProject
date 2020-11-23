@@ -464,7 +464,6 @@ int main(int argc, char *argv[]) {
     double *temp = centers;
     centers = cluster_means;
     cluster_means = temp;
-    cpu_time += omp_get_wtime() - t_cpu_start;
 
     // ###########################################
     // Compute centroid drift since last iteration
@@ -475,6 +474,7 @@ int main(int argc, char *argv[]) {
       vector_sub(tmp_diff, &centers[this_ctr], &prev_centers[this_ctr], num_cols);
       drifts[this_ctr] = vector_L2_norm(tmp_diff, num_cols);
     }
+    cpu_time += omp_get_wtime() - t_cpu_start;
 
     // ###########################################
     // Adjust bounds to account for centroid drift
