@@ -370,6 +370,16 @@ int main(int argc, char *argv[]) {
     if (errCode != cudaSuccess) {
       cout << "\nError: ctr ctr dists memcpy error with code " << errCode << endl;
     }
+
+    errCode = cudaMemcpy(dev_u_bounds, u_bounds, sizeof(double) * num_rows, cudaMemcpyHostToDevice);
+    if (errCode != cudaSuccess) {
+      cout << "\nError: u_bounds memcpy error with code " << errCode << endl;
+    }
+
+    errCode = cudaMemcpy(dev_l_bounds, l_bounds, sizeof(double) * num_rows * K, cudaMemcpyHostToDevice);
+    if (errCode != cudaSuccess) {
+      cout << "\nError: l_bounds memcpy error with code " << errCode << endl;
+    }
     transfer_time += omp_get_wtime() - t_transfer_start;
 
     // #################################
@@ -387,7 +397,7 @@ int main(int argc, char *argv[]) {
     // ######################################################################
     errCode = cudaMemcpy(&changes, dev_changes, sizeof(bool), cudaMemcpyDeviceToHost);
     if (errCode != cudaSuccess) {
-      cout << "\nError: changes memcpy error with code " << errCode << endl;
+      cout << "\nError: getting changes result from GPU error with code " << errCode << endl;
     }
 
     if (!changes) {
@@ -545,7 +555,6 @@ __global__ void elkan(int *dev_num_rows, int *dev_num_cols, double *dev_l_bounds
         // NOTE: There is an acceptable data race on changes. Threads only ever
         // set it to true; lost updates are inconsequential. No need to slow
         // things down for safety.
-        printf("HERE\n");
         *dev_changes = true;
         dev_clusterings[tid] = this_ctr;
         dev_u_bounds[tid] = dev_l_bounds[tid * *dev_K + this_ctr];
