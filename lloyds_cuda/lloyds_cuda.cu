@@ -411,7 +411,7 @@ __global__ void finishReassign(int *dev_num_cols, int *dev_K, double *dev_cluste
   }
 
   for (int i = 0; i < *dev_num_cols; i++) {
-    dev_cluster_means[tid * *dev_num_cols + i] /= dev_elements_per_cluster[i];
+    dev_cluster_means[tid * *dev_num_cols + i] /= dev_elements_per_cluster[tid];
   }
 }
 
