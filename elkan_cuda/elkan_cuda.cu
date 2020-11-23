@@ -351,6 +351,7 @@ int main(int argc, char *argv[]) {
     // ###############################################################################
     // Calculate center-center distances with OpenMP (K>=64 uncommon, xfer too costly)
     // ###############################################################################
+    t_cpu_start = omp_get_wtime();
     #pragma omp parallel for private (i, j, tmp_diff, min_diff) \
         shared(ctr_ctr_dists, centers, num_cols)
     for (i = 0; i < K; i++) {
@@ -367,6 +368,7 @@ int main(int argc, char *argv[]) {
 
       s[i] = min_diff / 2;
     }
+    cpu_time += omp_get_wtime() - t_cpu_start;
 
     t_transfer_start = omp_get_wtime();
     errCode = cudaMemcpy(dev_changes, &changes, sizeof(bool), cudaMemcpyHostToDevice);
@@ -510,7 +512,9 @@ int main(int argc, char *argv[]) {
   }
 
   printf("\nNum iterations: %d\n", num_iterations);
-  printf("Time taken for %d clusters: %f seconds\n", K, tend - t_start);
+  printf("Time taken for %d clusters: %f seconds\nkernel: %f seconds"
+         "\ntotaltransfer: %f seconds\nCPU time: %f seconds\n\n",
+         K, tend - t_start, kernel_time, transfer_time, cpu_time);
 
   free(data_matrix);
   free(clusterings);
