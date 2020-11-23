@@ -391,9 +391,6 @@ int main(int argc, char *argv[]) {
                                       dev_clusterings, dev_ctr_ctr_dists, dev_centers, dev_data_matrix,
                                       dev_changes, dev_K, dev_s);
     cudaDeviceSynchronize();
-    if (errCode != cudaSuccess) {
-      cout << "\nError: Did it actually happen here " << errCode << endl;
-    }
 
     // ######################################################################
     // If we didn't change any cluster assignments, we've reached convergence
@@ -537,7 +534,7 @@ __global__ void elkan(int *dev_num_rows, int *dev_num_cols, double *dev_l_bounds
       if (ubound_not_tight) {
         for (i = 0; i < *dev_num_cols; i++) {
           temp = dev_data_matrix[tid * *dev_num_cols + i] -
-                 dev_centers[dev_clusterings[tid] * *dev_num_rows + i];
+                 dev_centers[dev_clusterings[tid] * *dev_num_vols + i];
           vec_norm += temp * temp;
         }
         dev_u_bounds[tid] = sqrt(vec_norm);
@@ -550,7 +547,7 @@ __global__ void elkan(int *dev_num_rows, int *dev_num_cols, double *dev_l_bounds
 
       for (i = 0; i < *dev_num_cols; i++) {
         temp = dev_data_matrix[tid * *dev_num_cols + i] -
-               dev_centers[this_ctr * *dev_num_rows + i];
+               dev_centers[this_ctr * *dev_num_cols + i];
         vec_norm += temp * temp;
       }
       dev_l_bounds[tid * *dev_K + this_ctr] = sqrt(vec_norm);
