@@ -253,7 +253,7 @@ int main(int argc, char *argv[]) {
     num_iterations++;
 
     // Capture current centers for later re-use
-    memcpy(prev_centers, centers, num_cols * K);
+    memcpy(prev_centers, centers, num_cols * K * sizeof(double));
 
     // Calculate cluster mean for each cluster
     #pragma omp parallel for \
