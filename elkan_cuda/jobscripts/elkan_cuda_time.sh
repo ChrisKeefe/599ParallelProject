@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=l_cu_time
+#SBATCH --job-name=e_cu_time
 #SBATCH --output=/scratch/als872/elkan_cuda_out.txt
 #SBATCH --time=5:00
 #SBATCH --mem=10000
