@@ -204,6 +204,11 @@ int main(int argc, char *argv[]) {
     cout << "\nError: centers alloc error with code " << errCode << endl;
   }
 
+  errCode = cudaMemcpy(dev_centers, centers, sizeof(double) * K * num_cols, cudaMemcpyHostToDevice);
+  if (errCode != cudaSuccess) {
+    cout << "\nError: centers memcpy error with code " << errCode << endl;
+  }
+
   errCode = cudaMalloc(&dev_clusterings, sizeof(int) * num_rows);
   if (errCode != cudaSuccess) {
     cout << "\nError: clusterings alloc error with code " << errCode << endl;
@@ -256,11 +261,6 @@ int main(int argc, char *argv[]) {
     if (errCode != cudaSuccess) {
       cout << "\nError: changes memcpy error with code " << errCode << endl;
     }
-
-    // errCode = cudaMemcpy(dev_centers, centers, sizeof(double) * K * num_cols, cudaMemcpyHostToDevice);
-    // if (errCode != cudaSuccess) {
-    //   cout << "\nError: centers memcpy error with code " << errCode << endl;
-    // }
     transfer_time += omp_get_wtime() - t_transfer_start;
 
     kernel_start = omp_get_wtime();
@@ -271,8 +271,7 @@ int main(int argc, char *argv[]) {
     //copy data from device to host
     t_transfer_start = omp_get_wtime();
     errCode = cudaMemcpy(&changes, dev_changes, sizeof(bool), cudaMemcpyDeviceToHost);
-    if (errCode != cudaSuccess)     // // Replace the old cluster means with the new using only three assignments.
-    {
+    if (errCode != cudaSuccess) {
       cout << "\nError: getting changes result from GPU error with code " << errCode << endl;
     }
     transfer_time += omp_get_wtime() - t_transfer_start;
