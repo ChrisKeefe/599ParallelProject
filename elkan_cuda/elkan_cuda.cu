@@ -170,7 +170,7 @@ int main(int argc, char *argv[]) {
   printf("\n");
 
   // Create vars and allocate data for GPU
-  const unsigned int totalBlocks = ceil(num_rows * 1.0 / BLOCKSIZE);
+  const unsigned int totalBlocks = ceil(nvector_L2_normum_rows * 1.0 / BLOCKSIZE);
   warmUpGPU();
 
   int num_iterations = 0;
@@ -189,7 +189,7 @@ int main(int argc, char *argv[]) {
 
   int this_ctr, this_pt;
   double tmp_diff[num_cols];
-  double min_diff = INFINITY;
+  double min_diff;
 
   double *dev_data_matrix;
   double *dev_centers;
@@ -354,14 +354,17 @@ int main(int argc, char *argv[]) {
     #pragma omp parallel for private (i, j, tmp_diff, min_diff) \
         shared(ctr_ctr_dists, centers, num_cols)
     for (i = 0; i < K; i++) {
+      min_diff = INFINITY;
+
       for (j = 0; j < K; j++) {
-        vector_sub(tmp_diff, &centers[i], &centers[j], num_cols);
+        vector_sub(tmp_diff, centers[i], centers[j], num_cols);
         ctr_ctr_dists[i * K + j] = vector_L2_norm(tmp_diff, num_cols);
 
-        if (ctr_ctr_dists[i * K + j] < min_diff) {
+        if (ctr_ctr_dists[i * K + j] < min_diff && i != j) {
           min_diff = ctr_ctr_dists[i * K + j];
         }
       }
+
       s[i] = min_diff / 2;
     }
 

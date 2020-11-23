@@ -191,11 +191,13 @@ int main(int argc, char *argv[]){
     // Calculate center-center distances
     // TODO: reduce number of distance calculations
     for (i = 0; i < K; i++) {
+      min_diff = INFINITY;
+
       for (j = 0; j < K; j++) {
         vector_sub(tmp_diff, centers[i], centers[j], num_cols);
         ctr_ctr_dists[i * K + j] = vector_L2_norm(tmp_diff, num_cols);
 
-        if (ctr_ctr_dists[i * K + j] < min_diff) {
+        if (ctr_ctr_dists[i * K + j] < min_diff && i != j) {
           min_diff = ctr_ctr_dists[i * K + j];
         }
       }
