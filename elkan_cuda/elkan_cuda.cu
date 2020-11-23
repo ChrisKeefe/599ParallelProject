@@ -391,13 +391,16 @@ int main(int argc, char *argv[]) {
                                       dev_clusterings, dev_ctr_ctr_dists, dev_centers, dev_data_matrix,
                                       dev_changes, dev_K, dev_s);
     cudaDeviceSynchronize();
+    if (errCode != cudaSuccess) {
+      cout << "\nError: Did it actually happen here " << errCode << endl;
+    }
 
     // ######################################################################
     // If we didn't change any cluster assignments, we've reached convergence
     // ######################################################################
     errCode = cudaMemcpy(&changes, dev_changes, sizeof(bool), cudaMemcpyDeviceToHost);
     if (errCode != cudaSuccess) {
-      cout << "\nError: getting changes result from GPU error with code " << errCode << endl;
+      cout << "\nError: getting changes from GPU error with code " << errCode << endl;
     }
 
     if (!changes) {
