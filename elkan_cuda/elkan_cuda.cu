@@ -357,7 +357,7 @@ int main(int argc, char *argv[]) {
       min_diff = INFINITY;
 
       for (j = 0; j < K; j++) {
-        vector_sub(tmp_diff, &centers[i * num_rows], &centers[j * num_rows], num_cols);
+        vector_sub(tmp_diff, centers + i * num_cols, centers + j * num_cols, num_cols);
         ctr_ctr_dists[i * K + j] = vector_L2_norm(tmp_diff, num_cols);
 
         if (ctr_ctr_dists[i * K + j] < min_diff && i != j) {
