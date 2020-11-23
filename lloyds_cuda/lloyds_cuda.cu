@@ -16,6 +16,7 @@ __global__ void lloyds(double *dev_data_matrix, double *dev_centers, int *dev_cl
                        bool *dev_changes, int *dev_num_rows, int *dev_num_cols, int *dev_K);
 __global__ void reassign(int *dev_num_rows, int *dev_num_cols, int *dev_clusterings, double *dev_cluster_means,
                          double *dev_data_matrix, int *dev_elements_per_cluster);
+__global__ void finishReassign(int *dev_num_cols, int *dev_K, double *dev_cluster_means, int *dev_elements_per_cluster);
 
 void warmUpGPU();
 
@@ -256,10 +257,10 @@ int main(int argc, char *argv[]) {
       cout << "\nError: changes memcpy error with code " << errCode << endl;
     }
 
-    errCode = cudaMemcpy(dev_centers, centers, sizeof(double) * K * num_cols, cudaMemcpyHostToDevice);
-    if (errCode != cudaSuccess) {
-      cout << "\nError: centers memcpy error with code " << errCode << endl;
-    }
+    // errCode = cudaMemcpy(dev_centers, centers, sizeof(double) * K * num_cols, cudaMemcpyHostToDevice);
+    // if (errCode != cudaSuccess) {
+    //   cout << "\nError: centers memcpy error with code " << errCode << endl;
+    // }
     transfer_time += omp_get_wtime() - t_transfer_start;
 
     kernel_start = omp_get_wtime();
@@ -270,7 +271,8 @@ int main(int argc, char *argv[]) {
     //copy data from device to host
     t_transfer_start = omp_get_wtime();
     errCode = cudaMemcpy(&changes, dev_changes, sizeof(bool), cudaMemcpyDeviceToHost);
-    if (errCode != cudaSuccess) {
+    if (errCode != cudaSuccess)     // // Replace the old cluster means with the new using only three assignments.
+    {
       cout << "\nError: getting changes result from GPU error with code " << errCode << endl;
     }
     transfer_time += omp_get_wtime() - t_transfer_start;
@@ -296,32 +298,38 @@ int main(int argc, char *argv[]) {
     kernel_start = omp_get_wtime();
     reassign<<<totalBlocks, BLOCKSIZE>>>(dev_num_rows, dev_num_cols, dev_clusterings, dev_cluster_means, dev_data_matrix, dev_elements_per_cluster);
     cudaDeviceSynchronize();
+    // t_transfer_start = omp_get_wtime();
+    // errCode = cudaMemcpy(elements_per_cluster, dev_elements_per_cluster, sizeof(int) * K, cudaMemcpyDeviceToHost);
+    // if (errCode != cudaSuccess) {
+    //   cout << "\nError: getting elements per cluster from GPU error with code " << errCode << endl;
+    // }
+
+    // errCode = cudaMemcpy(cluster_means, dev_cluster_means, sizeof(double) * num_cols * K, cudaMemcpyDeviceToHost);
+    // if (errCode != cudaSuccess) {
+    //   cout << "\nError: getting cluster means from GPU error with code " << errCode << endl;
+    // }
+    // transfer_time += omp_get_wtime() - t_transfer_start;
+
+    // t_cpu_start = omp_get_wtime();
+    // #pragma omp parallel for
+    // for (int i = 0; i < K; i++) {
+    //   vector_elementwise_avg(cluster_means + i * num_cols, cluster_means + i * num_cols, elements_per_cluster[i], num_cols);
+    // }
+
+    // // Replace the old cluster means with the new using only three assignments.
+    // double *temp = centers;
+    // centers = cluster_means;
+    // cluster_means = temp;
+
+    // cpu_time += omp_get_wtime() - t_cpu_start;
+    finishReassign<<<totalBlocks, BLOCKSIZE>>>(dev_num_cols, dev_K, dev_cluster_means, dev_elements_per_cluster);
+    cudaDeviceSynchronize();
     kernel_time += omp_get_wtime() - kernel_start;
 
-    t_transfer_start = omp_get_wtime();
-    errCode = cudaMemcpy(elements_per_cluster, dev_elements_per_cluster, sizeof(int) * K, cudaMemcpyDeviceToHost);
-    if (errCode != cudaSuccess) {
-      cout << "\nError: getting elements per cluster from GPU error with code " << errCode << endl;
-    }
-
-    errCode = cudaMemcpy(cluster_means, dev_cluster_means, sizeof(double) * num_cols * K, cudaMemcpyDeviceToHost);
-    if (errCode != cudaSuccess) {
-      cout << "\nError: getting cluster means from GPU error with code " << errCode << endl;
-    }
-    transfer_time += omp_get_wtime() - t_transfer_start;
-
-    t_cpu_start = omp_get_wtime();
-    #pragma omp parallel for
-    for (int i = 0; i < K; i++) {
-      vector_elementwise_avg(cluster_means + i * num_cols, cluster_means + i * num_cols, elements_per_cluster[i], num_cols);
-    }
-
     // Replace the old cluster means with the new using only three assignments.
-    double *temp = centers;
-    centers = cluster_means;
-    cluster_means = temp;
-
-    cpu_time += omp_get_wtime() - t_cpu_start;
+    double *temp = dev_centers;
+    dev_centers = dev_cluster_means;
+    dev_cluster_means = temp;
   }
 
   double tend = omp_get_wtime();
@@ -393,6 +401,19 @@ __global__ void reassign(int *dev_num_rows, int *dev_num_cols, int *dev_clusteri
   }
 
   atomicAdd(&dev_elements_per_cluster[cluster], int(1));
+}
+
+
+__global__ void finishReassign(int *dev_num_cols, int *dev_K, double *dev_cluster_means, int *dev_elements_per_cluster) {
+  unsigned int tid = threadIdx.x + blockIdx.x * blockDim.x;
+
+  if (tid >= *dev_K) {
+    return;
+  }
+
+  for (int i = 0; i < *dev_num_cols; i++) {
+    dev_cluster_means[tid * *dev_num_cols + i] /= dev_elements_per_cluster[i];
+  }
 }
 
 
