@@ -339,11 +339,6 @@ int main(int argc, char *argv[]) {
     u_bounds[this_pt] = INFINITY;
   }
 
-  errCode = cudaMemset(dev_clusterings, 0, num_rows * sizeof(int));
-  if (errCode != cudaSuccess) {
-    cout << "\nError: memsetting cluster means error with code " << errCode << endl;
-  }
-
   while (1) {
     changes = false;
     // send changes flag to GPU and time the transfer
@@ -584,6 +579,9 @@ __global__ void elkan(int *dev_num_rows, int *dev_num_cols, double *dev_l_bounds
         // NOTE: There is an acceptable data race on changes. Threads only ever
         // set it to true; lost updates are inconsequential. No need to slow
         // things down for safety.
+        if(this_ctr == 2) {
+          printf("CTR is 2\n");
+        }
         *dev_changes = true;
         dev_clusterings[tid] = this_ctr;
         dev_u_bounds[tid] = dev_l_bounds[tid * *dev_K + this_ctr];
@@ -629,9 +627,6 @@ __global__ void reassign(int *dev_num_rows, int *dev_num_cols, int *dev_clusteri
   }
 
   unsigned int cluster = dev_clusterings[tid];
-  if (cluster == 3) {
-    printf("\n\n\nHERE %f %f\n\n\n", dev_data_matrix[tid * *dev_num_cols + 0], dev_data_matrix[tid * *dev_num_cols + 1]);
-  }
 
   for (unsigned int i = 0; i < *dev_num_cols; i++) {
     atomicAdd(&dev_cluster_means[cluster * *dev_num_cols + i], dev_data_matrix[tid * *dev_num_cols + i]);
