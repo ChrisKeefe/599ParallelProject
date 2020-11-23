@@ -368,18 +368,6 @@ int main(int argc, char *argv[]) {
       s[i] = min_diff / 2;
     }
 
-    for (int i = 0; i < K; i++) {
-      for (int j = 0; j < K; j++) {
-        printf("%f ", ctr_ctr_dists[i * K + j]);
-      }
-      printf("\n");
-    }
-    printf("\n");
-    for (int i = 0; i < K; i++) {
-      printf("%f\n", s[i]);
-    }
-    printf("\n");
-
     t_transfer_start = omp_get_wtime();
     errCode = cudaMemcpy(dev_changes, &changes, sizeof(bool), cudaMemcpyHostToDevice);
     if (errCode != cudaSuccess) {
@@ -412,10 +400,6 @@ int main(int argc, char *argv[]) {
     // #################################
     // TODO: transfer data, implement and run assign_points kernel, time
     // Assign points to cluster centers
-    for (int i = 0; i < num_rows; i++) {
-      printf("%d ", clusterings[i]);
-    }
-    printf("\n\n");
     elkan<<<totalBlocks, BLOCKSIZE>>>(dev_num_rows, dev_num_cols, dev_l_bounds, dev_u_bounds,
                                       dev_clusterings, dev_ctr_ctr_dists, dev_centers, dev_data_matrix,
                                       dev_changes, dev_K, dev_s);
@@ -468,14 +452,6 @@ int main(int argc, char *argv[]) {
     }
     transfer_time += omp_get_wtime() - t_transfer_start;
 
-  printf("\nCluster means:\n");
-  for (i = 0; i < K; i++) {
-    for (j = 0; j < num_cols; j++) {
-      printf("%f ", cluster_means[i * num_cols + j]);
-    }
-    printf("\n");
-  }
-
     t_cpu_start = omp_get_wtime();
     #pragma omp parallel for
     for (int i = 0; i < K; i++) {
@@ -487,15 +463,6 @@ int main(int argc, char *argv[]) {
     centers = cluster_means;
     cluster_means = temp;
     cpu_time += omp_get_wtime() - t_cpu_start;
-
-  printf("\nFinal cluster centers:\n");
-  for (i = 0; i < K; i++) {
-    for (j = 0; j < num_cols; j++) {
-      printf("%f ", centers[i * num_cols + j]);
-    }
-    printf("\n");
-  }
-
 
     // ###########################################
     // Compute centroid drift since last iteration
@@ -566,20 +533,6 @@ __global__ void elkan(int *dev_num_rows, int *dev_num_cols, double *dev_l_bounds
   double vec_norm;
   int i = 0;
 
-  if(tid == 0) {
-    for (int i = 0; i < *dev_K; i++) {
-      for (int j = 0; j < *dev_K; j++) {
-        printf("%f ", dev_ctr_ctr_dists[i * *dev_K + j]);
-      }
-      printf("\n");
-    }
-    printf("\n");
-    for (int i = 0; i < *dev_K; i++) {
-      printf("%f\n", dev_s[i]);
-    }
-    printf("\n");
-  }
-
   if (dev_u_bounds[tid] > dev_s[dev_clusterings[tid]]) {
     ubound_not_tight = true;
 
@@ -588,9 +541,6 @@ __global__ void elkan(int *dev_num_rows, int *dev_num_cols, double *dev_l_bounds
               dev_ctr_ctr_dists[dev_clusterings[tid] * *dev_K + this_ctr] / 2);
 
       if (this_ctr == dev_clusterings[tid] || dev_u_bounds[tid] <= z) {
-        if (this_ctr == 2) {
-          printf("tid %d\ncluster %d\nu_bound %f\nz %f\n\n", tid, dev_clusterings[tid], dev_u_bounds[tid], z);
-        }
         continue;
       }
 
@@ -605,9 +555,6 @@ __global__ void elkan(int *dev_num_rows, int *dev_num_cols, double *dev_l_bounds
         ubound_not_tight = false;
 
         if (dev_u_bounds[tid] <= z) {
-          if (this_ctr == 2) {
-            printf("tid %d\nu bound %f\nz %f\n\n", tid, dev_u_bounds[tid], z);
-          }
           continue;
         }
       }
@@ -623,9 +570,6 @@ __global__ void elkan(int *dev_num_rows, int *dev_num_cols, double *dev_l_bounds
         // NOTE: There is an acceptable data race on changes. Threads only ever
         // set it to true; lost updates are inconsequential. No need to slow
         // things down for safety.
-        if(this_ctr == 2) {
-          printf("CTR is 2\n");
-        }
         *dev_changes = true;
         dev_clusterings[tid] = this_ctr;
         dev_u_bounds[tid] = dev_l_bounds[tid * *dev_K + this_ctr];
