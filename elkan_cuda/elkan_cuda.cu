@@ -542,6 +542,10 @@ __global__ void elkan(int *dev_num_rows, int *dev_num_cols, double *dev_l_bounds
   double vec_norm;
   int i = 0;
 
+  if(tid == 0) {
+    printf("\n\n\nThe cluster %f %f\n\n\n", dev_centers[2 * *dev_num_cols], dev_centers[2 * *dev_num_cols + 1]);
+  }
+
   if (dev_u_bounds[tid] > dev_s[dev_clusterings[tid]]) {
     ubound_not_tight = true;
 
