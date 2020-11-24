@@ -474,6 +474,15 @@ int main(int argc, char *argv[]) {
       printf("%f ", s[i]);
     }
     printf("\n");
+    errCode = cudaMemcpy(clusterings, dev_clusterings, sizeof(int) * num_rows, cudaMemcpyDeviceToHost);
+    if (errCode != cudaSuccess) {
+      cout << "\nError: getting centers from GPU error with code " << errCode << endl;
+    }
+    printf("clusterings:\n");
+    for (i = 0; i < num_rows; i++) {
+      printf("%d ", clusterings[i]);
+    }
+    printf("\n");
 
     exit(0);
   }

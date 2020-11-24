@@ -353,6 +353,11 @@ int main(int argc, char *argv[]) {
       printf("%f ", s[i]);
     }
     printf("\n");
+    printf("clusterings:\n");
+    for (i = 0; i < num_rows; i++) {
+      printf("%d ", clusterings[i]);
+    }
+    printf("\n");
     exit(0);
   }
 
