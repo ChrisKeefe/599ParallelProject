@@ -330,6 +330,10 @@ int main(int argc, char *argv[]) {
   for (this_pt = 0; this_pt < num_rows; this_pt++) {
     u_bounds[this_pt] = INFINITY;
   }
+    errCode = cudaMemcpy(dev_u_bounds, u_bounds, sizeof(double) * num_rows, cudaMemcpyHostToDevice);
+    if (errCode != cudaSuccess) {
+      cout << "\nError: getting centers from GPU error with code " << errCode << endl;
+    }
   while (1) {
     changes = false;
     errCode = cudaMemcpy(dev_changes, &changes, sizeof(bool), cudaMemcpyHostToDevice);
