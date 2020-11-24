@@ -392,10 +392,18 @@ int main(int argc, char *argv[]) {
     //   cout << "\nError: s memcpy error with code " << errCode << endl;
     // }
 
-    // errCode = cudaMemcpy(dev_ctr_ctr_dists, ctr_ctr_dists, sizeof(double) * K * K, cudaMemcpyHostToDevice);
-    // if (errCode != cudaSuccess) {
-    //   cout << "\nError: ctr ctr dists memcpy error with code " << errCode << endl;
-    // }
+    errCode = cudaMemcpy(ctr_ctr_dists, dev_ctr_ctr_dists, sizeof(double) * K * K, cudaMemcpyDeviceToHost);
+    if (errCode != cudaSuccess) {
+      cout << "\nError: ctr ctr dists memcpy error with code " << errCode << endl;
+    }
+
+  printf("Center-center distances:\n");
+  for (i = 0; i < K; i++) {
+    for (j = 0; j < K; j++) {
+      printf("%f ", ctr_ctr_dists[j + i * K]);
+    }
+    printf("\n");
+  }
 
     // errCode = cudaMemcpy(dev_u_bounds, u_bounds, sizeof(double) * num_rows, cudaMemcpyHostToDevice);
     // if (errCode != cudaSuccess) {
