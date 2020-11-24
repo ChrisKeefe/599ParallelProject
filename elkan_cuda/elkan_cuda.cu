@@ -13,8 +13,8 @@
 
 using namespace std;
 
-__global__ ctr_ctr_dists(int *dev_K, int *dev_num_cols, double *dev_ctr_ctr_dists,
-                         double *dev_centers, double *dev_s);
+__global__ void ctr_ctr_dist_calc(int *dev_K, int *dev_num_cols, double *dev_ctr_ctr_dists,
+                                  double *dev_centers, double *dev_s);
 __global__ void elkan(int *dev_num_rows, int *dev_num_cols, double *dev_l_bounds,
                       double *dev_u_bounds, int *dev_clusterings, double *dev_ctr_ctr_dists,
                       double *dev_centers, double *dev_data_matrix, bool *dev_changes, int *dev_K,
@@ -300,6 +300,11 @@ int main(int argc, char *argv[]) {
     cout << "\nError: u bounds alloc error with code " << errCode << endl;
   }
 
+  errCode = cudaMemset(dev_u_bounds, INFINITY, num_rows * sizeof(double));
+  if (errCode != cudaSuccess) {
+    cout << "\nError: memsetting ubounds error with code " << errCode << endl;
+  }
+
   errCode = cudaMalloc(&dev_l_bounds, sizeof(double) * num_rows * K);
   if (errCode != cudaSuccess) {
     cout << "\nError: l bounds alloc error with code " << errCode << endl;
@@ -345,10 +350,10 @@ int main(int argc, char *argv[]) {
   // TODO: I suspect we're going to need additional memory allocations:
   // u_bound, l_bound, s, z, drifts, ctr_ctr_dists, prev_clousterings, bound_not_tight?
 
-  #pragma omp parallel for private(this_pt) shared(num_rows, u_bounds)
-  for (this_pt = 0; this_pt < num_rows; this_pt++) {
-    u_bounds[this_pt] = INFINITY;
-  }
+  // #pragma omp parallel for private(this_pt) shared(num_rows, u_bounds)
+  // for (this_pt = 0; this_pt < num_rows; this_pt++) {
+  //   u_bounds[this_pt] = INFINITY;
+  // }
 
   while (1) {
     changes = false;
@@ -408,7 +413,7 @@ int main(int argc, char *argv[]) {
     // TODO: transfer data, implement and run assign_points kernel, time
     // Assign points to cluster centers
     kernel_start = omp_get_wtime();
-    ctr_ctr_dists<<<totalBlocks, BLOCKSIZE>>>(dev_K, dev_num_cols, dev_ctr_ctr_dists, dev_centers, dev_s);
+    ctr_ctr_dist_calc<<<totalBlocks, BLOCKSIZE>>>(dev_K, dev_num_cols, dev_ctr_ctr_dists, dev_centers, dev_s);
     cudaDeviceSynchronize();
     elkan<<<totalBlocks, BLOCKSIZE>>>(dev_num_rows, dev_num_cols, dev_l_bounds, dev_u_bounds,
                                       dev_clusterings, dev_ctr_ctr_dists, dev_centers, dev_data_matrix,
@@ -534,8 +539,8 @@ int main(int argc, char *argv[]) {
 }
 
 
-__global__ ctr_ctr_dists(int *dev_K, int *dev_num_cols, double *dev_ctr_ctr_dists,
-                         double *dev_centers, double *dev_s) {
+__global__ void ctr_ctr_dist_calc(int *dev_K, int *dev_num_cols, double *dev_ctr_ctr_dists,
+                                  double *dev_centers, double *dev_s) {
   unsigned int tid = threadIdx.x + blockIdx.x * blockDim.x;
 
   if (tid >= *dev_K) {
