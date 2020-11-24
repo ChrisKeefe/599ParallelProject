@@ -359,11 +359,11 @@ int main(int argc, char *argv[]) {
     if (errCode != cudaSuccess) {
       cout << "\nError: getting s from GPU error with code " << errCode << endl;
     }
-    printf("\nS:\n");
-  for (i = 0; i < K; i++) {
-      printf("%f ", s[i]);
-  }
-    printf("\n");
+  //   printf("\nS:\n");
+  // for (i = 0; i < K; i++) {
+  //     printf("%f ", s[i]);
+  // }
+  //   printf("\n");
 
 
     if (!changes) {
@@ -407,6 +407,33 @@ int main(int argc, char *argv[]) {
                                               dev_prev_centers, dev_clusterings, dev_drifts,
                                               dev_num_rows, dev_num_cols, dev_K);
     cudaDeviceSynchronize();
+
+  errCode = cudaMemcpy(centers, dev_centers, sizeof(double) * K * num_cols, cudaMemcpyDeviceToHost);
+  if (errCode != cudaSuccess) {
+    cout << "\nError: getting centers from GPU error with code " << errCode << endl;
+  }
+
+  printf("\nFinal cluster centers:\n");
+  for (i = 0; i < K; i++) {
+    for (j = 0; j < num_cols; j++) {
+      printf("%f ", centers[i * num_cols + j]);
+    }
+    printf("\n");
+  }
+
+  errCode = cudaMemcpy(prev_centers, dev_prev_centers, sizeof(double) * K * num_cols, cudaMemcpyDeviceToHost);
+  if (errCode != cudaSuccess) {
+    cout << "\nError: getting centers from GPU error with code " << errCode << endl;
+  }
+
+  printf("\nPrev cluster centers:\n");
+  for (i = 0; i < K; i++) {
+    for (j = 0; j < num_cols; j++) {
+      printf("%f ", prev_centers[i * num_cols + j]);
+    }
+    printf("\n");
+  }
+  printf("\n");
   }
 
   errCode = cudaMemcpy(centers, dev_centers, sizeof(double) * K * num_cols, cudaMemcpyDeviceToHost);
@@ -464,9 +491,6 @@ __global__ void ctr_ctr_dist_calc(int *dev_K, int *dev_num_cols, double *dev_ctr
     }
 
     vec_norm = 0;
-    // vector_sub(tmp_diff, centers + i * num_cols, centers + j * num_cols, num_cols);
-    // ctr_ctr_dists[i * K + j] = vector_L2_norm(tmp_diff, num_cols);
-
     for (j = 0; j < *dev_num_cols; j++) {
       temp = dev_centers[tid * *dev_num_cols + j] -
              dev_centers[i * *dev_num_cols + j];

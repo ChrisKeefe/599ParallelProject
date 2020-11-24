@@ -278,7 +278,6 @@ int main(int argc, char *argv[]) {
 
     reassign<<<totalBlocks, BLOCKSIZE>>>(dev_num_rows, dev_num_cols, dev_clusterings, dev_cluster_means, dev_data_matrix, dev_elements_per_cluster);
     cudaDeviceSynchronize();
-
     finishReassign<<<totalBlocks, BLOCKSIZE>>>(dev_num_cols, dev_K, dev_cluster_means, dev_elements_per_cluster);
     cudaDeviceSynchronize();
 
