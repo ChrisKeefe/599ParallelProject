@@ -345,6 +345,16 @@ int main(int argc, char *argv[]) {
                                       dev_clusterings, dev_ctr_ctr_dists, dev_centers, dev_data_matrix,
                                       dev_changes, dev_K, dev_s);
     cudaDeviceSynchronize();
+    errCode = cudaMemcpy(u_bounds, dev_u_bounds, sizeof(double) * num_rows, cudaMemcpyDeviceToHost);
+    if (errCode != cudaSuccess) {
+      cout << "\nError: getting centers from GPU error with code " << errCode << endl;
+    }
+    printf("u_bounds:\n");
+    for (i = 0; i < num_rows; i++) {
+      printf("%f ", u_bounds[i]);
+    }
+
+    printf("\n");
 
     // ######################################################################
     // If we didn't change any cluster assignments, we've reached convergence

@@ -259,6 +259,13 @@ int main(int argc, char *argv[]) {
       }
     }
 
+    printf("u_bounds:\n");
+    for (i = 0; i < num_rows; i++) {
+      printf("%f ", u_bounds[i]);
+    }
+
+    printf("\n");
+
     // If no clusterings have changed, we have reached convergence
     if (!changes) {
       break;
