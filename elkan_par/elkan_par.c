@@ -288,6 +288,23 @@ int main(int argc, char *argv[]) {
       vector_copy(centers[this_ctr], cluster_means, num_cols);
     }
 
+  printf("\nFinal cluster centers:\n");
+  for (i = 0; i < K; i++) {
+    for (j = 0; j < num_cols; j++) {
+      printf("%f ", centers[i][j]);
+    }
+    printf("\n");
+  }
+  printf("\nPrev cluster centers:\n");
+  for (i = 0; i < K; i++) {
+    for (j = 0; j < num_cols; j++) {
+      printf("%f ", prev_centers[i][j]);
+    }
+    printf("\n");
+  }
+
+    printf("\n");
+
     // Compute centroid drift since last iteration
     #pragma omp parallel for private(this_ctr, tmp_diff) shared(centers, prev_centers, num_cols, drifts)
     for (this_ctr = 0; this_ctr < K; this_ctr++) {
@@ -311,24 +328,6 @@ int main(int argc, char *argv[]) {
   for (i = 0; i < K; i++) {
       printf("%f ", drifts[i]);
   }
-    printf("\n");
-
-
-  printf("\nFinal cluster centers:\n");
-  for (i = 0; i < K; i++) {
-    for (j = 0; j < num_cols; j++) {
-      printf("%f ", centers[i][j]);
-    }
-    printf("\n");
-  }
-  printf("\nPrev cluster centers:\n");
-  for (i = 0; i < K; i++) {
-    for (j = 0; j < num_cols; j++) {
-      printf("%f ", prev_centers[i][j]);
-    }
-    printf("\n");
-  }
-
     printf("\n");
   }
 

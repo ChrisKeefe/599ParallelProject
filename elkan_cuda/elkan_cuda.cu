@@ -400,25 +400,6 @@ int main(int argc, char *argv[]) {
     dev_centers = dev_cluster_means;
     dev_cluster_means = temp;
 
-    calc_drifts<<<totalBlocks, BLOCKSIZE>>>(dev_K, dev_num_cols, dev_centers,
-                                            dev_prev_centers, dev_drifts);
-    cudaDeviceSynchronize();
-    adjust_bounds<<<totalBlocks, BLOCKSIZE>>>(dev_u_bounds, dev_l_bounds, dev_centers,
-                                              dev_prev_centers, dev_clusterings, dev_drifts,
-                                              dev_num_rows, dev_num_cols, dev_K);
-    cudaDeviceSynchronize();
-
-  errCode = cudaMemcpy(drifts, dev_drifts, sizeof(double) * K, cudaMemcpyDeviceToHost);
-  if (errCode != cudaSuccess) {
-    cout << "\nError: getting centers from GPU error with code " << errCode << endl;
-  }
-
-    printf("\ndrifts:\n");
-  for (i = 0; i < K; i++) {
-      printf("%f ", drifts[i]);
-  }
-    printf("\n");
-
   errCode = cudaMemcpy(centers, dev_centers, sizeof(double) * K * num_cols, cudaMemcpyDeviceToHost);
   if (errCode != cudaSuccess) {
     cout << "\nError: getting centers from GPU error with code " << errCode << endl;
@@ -445,6 +426,25 @@ int main(int argc, char *argv[]) {
     printf("\n");
   }
   printf("\n");
+
+    calc_drifts<<<totalBlocks, BLOCKSIZE>>>(dev_K, dev_num_cols, dev_centers,
+                                            dev_prev_centers, dev_drifts);
+    cudaDeviceSynchronize();
+    adjust_bounds<<<totalBlocks, BLOCKSIZE>>>(dev_u_bounds, dev_l_bounds, dev_centers,
+                                              dev_prev_centers, dev_clusterings, dev_drifts,
+                                              dev_num_rows, dev_num_cols, dev_K);
+    cudaDeviceSynchronize();
+
+  errCode = cudaMemcpy(drifts, dev_drifts, sizeof(double) * K, cudaMemcpyDeviceToHost);
+  if (errCode != cudaSuccess) {
+    cout << "\nError: getting centers from GPU error with code " << errCode << endl;
+  }
+
+    printf("\ndrifts:\n");
+  for (i = 0; i < K; i++) {
+      printf("%f ", drifts[i]);
+  }
+    printf("\n");
   }
 
   errCode = cudaMemcpy(centers, dev_centers, sizeof(double) * K * num_cols, cudaMemcpyDeviceToHost);
