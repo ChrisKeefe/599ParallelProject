@@ -155,7 +155,6 @@ int main(int argc, char *argv[]) {
   int num_iterations = 0;
   int *clusterings = (int *)malloc(num_rows * sizeof(int));
   double *cluster_means = (double *)malloc(num_cols * K * sizeof(double));
-  int elements_per_cluster[K];
   bool changes;
 
   double *dev_data_matrix;
@@ -172,8 +171,6 @@ int main(int argc, char *argv[]) {
   double kernel_start;
   double kernel_time = 0;
   double transfer_time = 0;
-  double t_cpu_start = 0;
-  double cpu_time;
 
   cudaError_t errCode = cudaSuccess;
 
@@ -272,7 +269,7 @@ int main(int argc, char *argv[]) {
     t_transfer_start = omp_get_wtime();
     errCode = cudaMemcpy(&changes, dev_changes, sizeof(bool), cudaMemcpyDeviceToHost);
     if (errCode != cudaSuccess) {
-      cout << "\nError: getting changes result from GPU error with code " << errCode << endl;
+      cout << "\nError: getting changes from GPU error with code " << errCode << endl;
     }
     transfer_time += omp_get_wtime() - t_transfer_start;
 
@@ -284,6 +281,7 @@ int main(int argc, char *argv[]) {
     num_iterations++;
 
     // Find cluster means and reassign centers
+    t_transfer_start = omp_get_wtime();
     errCode = cudaMemset(dev_elements_per_cluster, 0, K * sizeof(int));
     if (errCode != cudaSuccess) {
       cout << "\nError: memsetting elements per cluster error with code " << errCode << endl;
@@ -293,34 +291,12 @@ int main(int argc, char *argv[]) {
     if (errCode != cudaSuccess) {
       cout << "\nError: memsetting cluster means error with code " << errCode << endl;
     }
+    transfer_time += omp_get_wtime() - t_transfer_start;
 
     kernel_start = omp_get_wtime();
     reassign<<<totalBlocks, BLOCKSIZE>>>(dev_num_rows, dev_num_cols, dev_clusterings, dev_cluster_means, dev_data_matrix, dev_elements_per_cluster);
     cudaDeviceSynchronize();
-    // t_transfer_start = omp_get_wtime();
-    // errCode = cudaMemcpy(elements_per_cluster, dev_elements_per_cluster, sizeof(int) * K, cudaMemcpyDeviceToHost);
-    // if (errCode != cudaSuccess) {
-    //   cout << "\nError: getting elements per cluster from GPU error with code " << errCode << endl;
-    // }
 
-    // errCode = cudaMemcpy(cluster_means, dev_cluster_means, sizeof(double) * num_cols * K, cudaMemcpyDeviceToHost);
-    // if (errCode != cudaSuccess) {
-    //   cout << "\nError: getting cluster means from GPU error with code " << errCode << endl;
-    // }
-    // transfer_time += omp_get_wtime() - t_transfer_start;
-
-    // t_cpu_start = omp_get_wtime();
-    // #pragma omp parallel for
-    // for (int i = 0; i < K; i++) {
-    //   vector_elementwise_avg(cluster_means + i * num_cols, cluster_means + i * num_cols, elements_per_cluster[i], num_cols);
-    // }
-
-    // // Replace the old cluster means with the new using only three assignments.
-    // double *temp = centers;
-    // centers = cluster_means;
-    // cluster_means = temp;
-
-    // cpu_time += omp_get_wtime() - t_cpu_start;
     finishReassign<<<totalBlocks, BLOCKSIZE>>>(dev_num_cols, dev_K, dev_cluster_means, dev_elements_per_cluster);
     cudaDeviceSynchronize();
     kernel_time += omp_get_wtime() - kernel_start;
@@ -331,7 +307,13 @@ int main(int argc, char *argv[]) {
     dev_cluster_means = temp;
   }
 
+  t_transfer_start = omp_get_wtime();
+  errCode = cudaMemcpy(centers, dev_centers, sizeof(double) * K * num_cols, cudaMemcpyDeviceToHost);
+  if (errCode != cudaSuccess) {
+    cout << "\nError: getting centers from GPU error with code " << errCode << endl;
+  }
   double tend = omp_get_wtime();
+  transfer_time += tend - t_transfer_start;
 
   printf("\nFinal cluster centers:\n");
   for (i = 0; i < K; i++) {
@@ -343,8 +325,8 @@ int main(int argc, char *argv[]) {
 
   printf("\nNum iterations: %d\n", num_iterations);
   printf("Time taken for %d clusters: %f seconds\nkernel: %f seconds"
-         "\ntotaltransfer: %f seconds\nCPU time: %f seconds\n\n",
-         K, tend - t_start, kernel_time, transfer_time, cpu_time);
+         "\ntotaltransfer: %f seconds\n\n",
+         K, tend - t_start, kernel_time, transfer_time);
 
   free(data_matrix);
   free(clusterings);
