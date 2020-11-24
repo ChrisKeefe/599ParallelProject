@@ -353,6 +353,7 @@ int main(int argc, char *argv[]) {
 
   kernel_start = omp_get_wtime();
   init_ubound<<<totalBlocks, BLOCKSIZE>>>(dev_num_rows, dev_u_bounds);
+  cudaDeviceSynchronize();
   kernel_time += omp_get_wtime() - kernel_start;
 
   while (1) {
