@@ -13,4 +13,4 @@ module load cuda
 nvcc -arch=compute_60 -code=sm_60 -lcuda -Xcompiler -fopenmp elkan_cuda.cu csvparser.c -o elkan_cuda
 
 # run
-srun /elkan_cuda 3 "../data/iris.csv" "," 1 1 1
+srun ./elkan_cuda 3 "../data/iris.csv" "," 1 1 1
