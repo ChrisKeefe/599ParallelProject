@@ -324,16 +324,9 @@ int main(int argc, char *argv[]) {
   // #########################
   // # BEGIN ELKAN MAIN LOOP #
   // #########################
-  // init_ubound<<<totalBlocks, BLOCKSIZE>>>(dev_num_rows, dev_u_bounds);
-  // cudaDeviceSynchronize();
-  #pragma omp parallel for private(this_pt) shared(num_rows, u_bounds)
-  for (this_pt = 0; this_pt < num_rows; this_pt++) {
-    u_bounds[this_pt] = INFINITY;
-  }
-    errCode = cudaMemcpy(dev_u_bounds, u_bounds, sizeof(double) * num_rows, cudaMemcpyHostToDevice);
-    if (errCode != cudaSuccess) {
-      cout << "\nError: getting centers from GPU error with code " << errCode << endl;
-    }
+  init_ubound<<<totalBlocks, BLOCKSIZE>>>(dev_num_rows, dev_u_bounds);
+  cudaDeviceSynchronize();
+
   while (1) {
     changes = false;
     errCode = cudaMemcpy(dev_changes, &changes, sizeof(bool), cudaMemcpyHostToDevice);
@@ -452,6 +445,25 @@ int main(int argc, char *argv[]) {
 
     printf("\n");
 
+    errCode = cudaMemcpy(ctr_ctr_dists, dev_ctr_ctr_dists, sizeof(double) * K * K, cudaMemcpyDeviceToHost);
+    if (errCode != cudaSuccess) {
+      cout << "\nError: getting centers from GPU error with code " << errCode << endl;
+    }
+    printf("ctr_ctr_dists:\n");
+    for (i = 0; i < K; i++) {
+      for (j = 0; j < K; j++) {
+        printf("%f ", ctr_ctr_dists[i * K + j]);
+      }
+    }
+    errCode = cudaMemcpy(s, dev_s, sizeof(double) * K, cudaMemcpyDeviceToHost);
+    if (errCode != cudaSuccess) {
+      cout << "\nError: getting centers from GPU error with code " << errCode << endl;
+    }
+    printf("s:\n");
+    for (i = 0; i < K; i++) {
+      printf("%f ", s[i]);
+    }
+    printf("\n");
 
     exit(0);
   }

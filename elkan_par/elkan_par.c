@@ -334,6 +334,18 @@ int main(int argc, char *argv[]) {
     }
 
     printf("\n");
+
+    printf("ctr_ctr_dists:\n");
+    for (i = 0; i < K; i++) {
+      for (j = 0; j < K; j++) {
+        printf("%f ", ctr_ctr_dists[i * K + j]);
+      }
+    }
+    printf("s:\n");
+    for (i = 0; i < K; i++) {
+      printf("%f ", s[i]);
+    }
+    printf("\n");
     exit(0);
   }
 
