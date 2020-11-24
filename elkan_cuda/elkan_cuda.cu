@@ -690,7 +690,8 @@ __global__ void adjust_bounds(double *dev_u_bounds, double *dev_l_bounds, double
   double temp;
   double vec_norm = 0;
   for (int i = 0; i < *dev_num_cols; i++) {
-    temp = dev_centers[dev_clusterings[tid]] + i - dev_prev_centers[dev_clusterings[tid]] + i;
+    temp = dev_centers[dev_clusterings[tid] * *dev_num_cols + i] -
+           dev_prev_centers[dev_clusterings[tid] * *dev_num_cols + i];
     vec_norm += temp * temp;
   }
   dev_u_bounds[tid] += sqrt(vec_norm);
