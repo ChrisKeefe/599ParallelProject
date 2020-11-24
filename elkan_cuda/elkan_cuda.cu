@@ -517,6 +517,17 @@ int main(int argc, char *argv[]) {
     }
     printf("\n");
   }
+  errCode = cudaMemcpy(prev_centers, dev_prev_centers, sizeof(double) * K * num_cols, cudaMemcpyDeviceToHost);
+  if (errCode != cudaSuccess) {
+    cout << "\nError: getting centers from GPU error with code " << errCode << endl;
+  }
+  printf("\nPrev cluster centers:\n");
+  for (i = 0; i < K; i++) {
+    for (j = 0; j < num_cols; j++) {
+      printf("%f ", prevcenters[i * num_cols + j]);
+    }
+    printf("\n");
+  }
   }
 
   t_transfer_start = omp_get_wtime();
