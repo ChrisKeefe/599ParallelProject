@@ -213,13 +213,6 @@ int main(int argc, char *argv[]) {
       s[i] = min_diff / 2;
     }
 
-  // printf("\nS:\n");
-  // for (i = 0; i < K; i++) {
-  //     printf("%f ", s[i]);
-  // }
-  //   printf("\n");
-
-
     // Assign points to cluster centers
     #pragma omp parallel for private (this_pt, this_ctr, z, tmp_diff, ubound_not_tight) \
       shared(num_rows, num_cols, l_bounds, u_bounds, s, clusterings, ctr_ctr_dists, centers, data_matrix, changes) schedule(dynamic)
@@ -258,13 +251,6 @@ int main(int argc, char *argv[]) {
         }
       }
     }
-
-    printf("u_bounds:\n");
-    for (i = 0; i < num_rows; i++) {
-      printf("%f ", u_bounds[i]);
-    }
-
-    printf("\n");
 
     // If no clusterings have changed, we have reached convergence
     if (!changes) {
@@ -313,52 +299,6 @@ int main(int argc, char *argv[]) {
         l_bounds[this_pt * K + this_ctr] -= drifts[this_ctr];
       }
     }
-
-    printf("\nFinal cluster centers:\n");
-    for (i = 0; i < K; i++) {
-      for (j = 0; j < num_cols; j++) {
-        printf("%f ", centers[i][j]);
-      }
-      printf("\n");
-    }
-    printf("\nPrev cluster centers:\n");
-    for (i = 0; i < K; i++) {
-      for (j = 0; j < num_cols; j++) {
-        printf("%f ", prev_centers[i][j]);
-      }
-      printf("\n");
-    }
-    printf("\nl_bounds:\n");
-    for (i = 0; i < num_rows; i++) {
-      for (j = 0; j < K; j++) {
-        printf("%f ", l_bounds[i * K + j]);
-      }
-      printf("\n");
-    }
-    printf("u_bounds:\n");
-    for (i = 0; i < num_rows; i++) {
-      printf("%f ", u_bounds[i]);
-    }
-
-    printf("\n");
-
-    printf("ctr_ctr_dists:\n");
-    for (i = 0; i < K; i++) {
-      for (j = 0; j < K; j++) {
-        printf("%f ", ctr_ctr_dists[i * K + j]);
-      }
-    }
-    printf("s:\n");
-    for (i = 0; i < K; i++) {
-      printf("%f ", s[i]);
-    }
-    printf("\n");
-    printf("clusterings:\n");
-    for (i = 0; i < num_rows; i++) {
-      printf("%d ", clusterings[i]);
-    }
-    printf("\n");
-    exit(0);
   }
 
   double tend = omp_get_wtime();
