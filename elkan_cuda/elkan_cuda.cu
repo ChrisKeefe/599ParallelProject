@@ -570,7 +570,7 @@ __global__ void ctr_ctr_dist_calc(int *dev_K, int *dev_num_cols, double *dev_ctr
   }
 
   double min_diff = INFINITY;
-  double vec_norm = 0;
+  double vec_norm;
   double temp;
 
   int j;
@@ -580,6 +580,7 @@ __global__ void ctr_ctr_dist_calc(int *dev_K, int *dev_num_cols, double *dev_ctr
       continue;
     }
 
+    vec_norm = 0;
     // vector_sub(tmp_diff, centers + i * num_cols, centers + j * num_cols, num_cols);
     // ctr_ctr_dists[i * K + j] = vector_L2_norm(tmp_diff, num_cols);
 
