@@ -524,7 +524,7 @@ int main(int argc, char *argv[]) {
   printf("\nPrev cluster centers:\n");
   for (i = 0; i < K; i++) {
     for (j = 0; j < num_cols; j++) {
-      printf("%f ", prevcenters[i * num_cols + j]);
+      printf("%f ", prev_centers[i * num_cols + j]);
     }
     printf("\n");
   }
