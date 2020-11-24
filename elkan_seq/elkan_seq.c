@@ -195,7 +195,7 @@ int main(int argc, char *argv[]){
 
       for (j = 0; j < K; j++) {
         if (i == j) {
-          ctr_ctr_dists[i * K + i] = 0;
+          ctr_ctr_dists[i * K + j] = 0;
           continue;
         }
 

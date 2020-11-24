@@ -198,7 +198,7 @@ int main(int argc, char *argv[]) {
 
       for (j = 0; j < K; j++) {
         if (i == j) {
-          ctr_ctr_dists[i * K + i] = 0;
+          ctr_ctr_dists[i * K + j] = 0;
           continue;
         }
 
@@ -212,6 +212,13 @@ int main(int argc, char *argv[]) {
 
       s[i] = min_diff / 2;
     }
+
+  printf("\nS:\n");
+  for (i = 0; i < K; i++) {
+      printf("%f ", s[i]);
+  }
+    printf("\n");
+
 
     // Assign points to cluster centers
     #pragma omp parallel for private (this_pt, this_ctr, z, tmp_diff, ubound_not_tight) \
@@ -299,21 +306,6 @@ int main(int argc, char *argv[]) {
         l_bounds[this_pt * K + this_ctr] -= drifts[this_ctr];
       }
     }
-
-  printf("\nFinal cluster centers:\n");
-  for (i = 0; i < K; i++) {
-    for (j = 0; j < num_cols; j++) {
-      printf("%f ", centers[i][j]);
-    }
-    printf("\n");
-  }
-  printf("\nPrev cluster centers:\n");
-  for (i = 0; i < K; i++) {
-    for (j = 0; j < num_cols; j++) {
-      printf("%f ", prev_centers[i][j]);
-    }
-    printf("\n");
-  }
   }
 
   double tend = omp_get_wtime();

@@ -206,7 +206,6 @@ int main(int argc, char *argv[]) {
   double *dev_l_bounds;
   double *dev_drifts;
   double *dev_s;
-  double *dev_z;
   double *dev_ctr_ctr_dists;
   int *dev_elements_per_cluster;
   int *dev_clusterings;
@@ -313,11 +312,6 @@ int main(int argc, char *argv[]) {
     cout << "\nError: s alloc error with code " << errCode << endl;
   }
 
-  errCode = cudaMalloc(&dev_z, sizeof(double));
-  if (errCode != cudaSuccess) {
-    cout << "\nError: z alloc error with code " << errCode << endl;
-  }
-
   errCode = cudaMalloc(&dev_ctr_ctr_dists, sizeof(double) * K * K);
   if (errCode != cudaSuccess) {
     cout << "\nError: ctr ctr dists alloc error with code " << errCode << endl;
@@ -361,14 +355,22 @@ int main(int argc, char *argv[]) {
       cout << "\nError: getting changes from GPU error with code " << errCode << endl;
     }
 
+    errCode = cudaMemcpy(s, dev_s, sizeof(double) * K, cudaMemcpyDeviceToHost);
+    if (errCode != cudaSuccess) {
+      cout << "\nError: getting s from GPU error with code " << errCode << endl;
+    }
+    printf("\nS:\n");
+  for (i = 0; i < K; i++) {
+      printf("%f ", s[i]);
+  }
+    printf("\n");
+
+
     if (!changes) {
       break;
     }
 
     num_iterations++;
-
-    // Capture current centers for later re-use
-    // memcpy(prev_centers, centers, num_cols * K * sizeof(double));
 
     // #######################################
     // Find cluster means and reassign centers
