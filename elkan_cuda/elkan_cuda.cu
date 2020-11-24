@@ -569,8 +569,8 @@ __global__ void ctr_ctr_dist_calc(int *dev_K, int *dev_num_cols, double *dev_ctr
       continue;
     }
 
-    vector_sub(tmp_diff, centers + i * num_cols, centers + j * num_cols, num_cols);
-    ctr_ctr_dists[i * K + j] = vector_L2_norm(tmp_diff, num_cols);
+    // vector_sub(tmp_diff, centers + i * num_cols, centers + j * num_cols, num_cols);
+    // ctr_ctr_dists[i * K + j] = vector_L2_norm(tmp_diff, num_cols);
 
     for (j = 0; j < *dev_num_cols; j++) {
       temp = dev_centers[tid * *dev_num_cols + j] -
@@ -697,8 +697,8 @@ __global__ void calc_drifts(int *dev_K, int *dev_num_cols, double *dev_centers,
   double temp;
 
   for (int i = 0; i < *dev_num_cols; i++) {
-    temp = dev_centers[this_ctr * *dev_num_cols + i] -
-           dev_prev_centers[this_ctr * *dev_num_cols + i];
+    temp = dev_centers[tid * *dev_num_cols + i] -
+           dev_prev_centers[tid * *dev_num_cols + i];
     vec_norm += temp * temp;
   }
   dev_drifts[tid] = sqrt(vec_norm);
