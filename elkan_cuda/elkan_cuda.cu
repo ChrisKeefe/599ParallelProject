@@ -324,9 +324,12 @@ int main(int argc, char *argv[]) {
   // #########################
   // # BEGIN ELKAN MAIN LOOP #
   // #########################
-  init_ubound<<<totalBlocks, BLOCKSIZE>>>(dev_num_rows, dev_u_bounds);
-  cudaDeviceSynchronize();
-
+  // init_ubound<<<totalBlocks, BLOCKSIZE>>>(dev_num_rows, dev_u_bounds);
+  // cudaDeviceSynchronize();
+  #pragma omp parallel for private(this_pt) shared(num_rows, u_bounds)
+  for (this_pt = 0; this_pt < num_rows; this_pt++) {
+    u_bounds[this_pt] = INFINITY;
+  }
   while (1) {
     changes = false;
     errCode = cudaMemcpy(dev_changes, &changes, sizeof(bool), cudaMemcpyHostToDevice);
