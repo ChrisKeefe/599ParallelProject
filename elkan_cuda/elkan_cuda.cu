@@ -13,6 +13,7 @@
 
 using namespace std;
 
+__global__ void init_ubound(int *dev_num_rows, double *dev_u_bounds);
 __global__ void ctr_ctr_dist_calc(int *dev_K, int *dev_num_cols, double *dev_ctr_ctr_dists,
                                   double *dev_centers, double *dev_s);
 __global__ void elkan(int *dev_num_rows, int *dev_num_cols, double *dev_l_bounds,
@@ -300,11 +301,6 @@ int main(int argc, char *argv[]) {
     cout << "\nError: u bounds alloc error with code " << errCode << endl;
   }
 
-  errCode = cudaMemset(dev_u_bounds, INFINITY, num_rows * sizeof(double));
-  if (errCode != cudaSuccess) {
-    cout << "\nError: memsetting ubounds error with code " << errCode << endl;
-  }
-
   errCode = cudaMalloc(&dev_l_bounds, sizeof(double) * num_rows * K);
   if (errCode != cudaSuccess) {
     cout << "\nError: l bounds alloc error with code " << errCode << endl;
@@ -354,6 +350,10 @@ int main(int argc, char *argv[]) {
   // for (this_pt = 0; this_pt < num_rows; this_pt++) {
   //   u_bounds[this_pt] = INFINITY;
   // }
+
+  kernel_start = omp_get_wtime();
+  init_ubound<<<totalBlocks, BLOCKSIZE>>>(dev_num_rows, dev_u_bounds);
+  kernel_time += omp_get_wtime() - kernel_start;
 
   while (1) {
     changes = false;
@@ -539,6 +539,17 @@ int main(int argc, char *argv[]) {
 }
 
 
+__global__ void init_ubound(int *dev_num_rows, double *dev_u_bounds) {
+  unsigned int tid = threadIdx.x + blockIdx.x * blockDim.x;
+
+  if (tid >= *dev_num_rows) {
+    return;
+  }
+
+  dev_u_bounds[tid] = INFINITY;
+}
+
+
 __global__ void ctr_ctr_dist_calc(int *dev_K, int *dev_num_cols, double *dev_ctr_ctr_dists,
                                   double *dev_centers, double *dev_s) {
   unsigned int tid = threadIdx.x + blockIdx.x * blockDim.x;
@@ -583,7 +594,7 @@ __global__ void elkan(int *dev_num_rows, int *dev_num_cols, double *dev_l_bounds
                       double *dev_s) {
   unsigned int tid = threadIdx.x + blockIdx.x * blockDim.x;
 
-  if (tid >= *dev_num_rows){
+  if (tid >= *dev_num_rows) {
     return;
   }
 
