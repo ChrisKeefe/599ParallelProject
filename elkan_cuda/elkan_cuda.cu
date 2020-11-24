@@ -411,21 +411,6 @@ int main(int argc, char *argv[]) {
     kernel_start = omp_get_wtime();
     ctr_ctr_dist_calc<<<totalBlocks, BLOCKSIZE>>>(dev_K, dev_num_cols, dev_ctr_ctr_dists, dev_centers, dev_s);
     cudaDeviceSynchronize();
-
-
-    errCode = cudaMemcpy(ctr_ctr_dists, dev_ctr_ctr_dists, sizeof(double) * K * K, cudaMemcpyDeviceToHost);
-    if (errCode != cudaSuccess) {
-      cout << "\nError: ctr ctr dists memcpy error with code " << errCode << endl;
-    }
-
-  printf("Center-center distances:\n");
-  for (i = 0; i < K; i++) {
-    for (j = 0; j < K; j++) {
-      printf("%f ", ctr_ctr_dists[j + i * K]);
-    }
-    printf("\n");
-  }
-
     elkan<<<totalBlocks, BLOCKSIZE>>>(dev_num_rows, dev_num_cols, dev_l_bounds, dev_u_bounds,
                                       dev_clusterings, dev_ctr_ctr_dists, dev_centers, dev_data_matrix,
                                       dev_changes, dev_K, dev_s);
@@ -520,6 +505,18 @@ int main(int argc, char *argv[]) {
                                               dev_num_rows, dev_num_cols, dev_K);
     cudaDeviceSynchronize();
     kernel_time += omp_get_wtime() - kernel_start;
+
+  errCode = cudaMemcpy(centers, dev_centers, sizeof(double) * K * num_cols, cudaMemcpyDeviceToHost);
+  if (errCode != cudaSuccess) {
+    cout << "\nError: getting centers from GPU error with code " << errCode << endl;
+  }
+  printf("\nFinal cluster centers:\n");
+  for (i = 0; i < K; i++) {
+    for (j = 0; j < num_cols; j++) {
+      printf("%f ", centers[i * num_cols + j]);
+    }
+    printf("\n");
+  }
   }
 
   t_transfer_start = omp_get_wtime();
