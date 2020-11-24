@@ -189,7 +189,6 @@ int main(int argc, char *argv[]) {
   double *l_bounds = (double *)calloc(num_rows * K, sizeof(double));
   double *u_bounds = (double *)calloc(num_rows, sizeof(double));
   double *ctr_ctr_dists = (double *)malloc(K * K * sizeof(double));
-  double *drifts = (double *)malloc(K * sizeof(double));
 
   // These need better names
   double s[K];
@@ -355,17 +354,6 @@ int main(int argc, char *argv[]) {
       cout << "\nError: getting changes from GPU error with code " << errCode << endl;
     }
 
-    errCode = cudaMemcpy(s, dev_s, sizeof(double) * K, cudaMemcpyDeviceToHost);
-    if (errCode != cudaSuccess) {
-      cout << "\nError: getting s from GPU error with code " << errCode << endl;
-    }
-  //   printf("\nS:\n");
-  // for (i = 0; i < K; i++) {
-  //     printf("%f ", s[i]);
-  // }
-  //   printf("\n");
-
-
     if (!changes) {
       break;
     }
@@ -400,33 +388,6 @@ int main(int argc, char *argv[]) {
     dev_centers = dev_cluster_means;
     dev_cluster_means = temp;
 
-  errCode = cudaMemcpy(centers, dev_centers, sizeof(double) * K * num_cols, cudaMemcpyDeviceToHost);
-  if (errCode != cudaSuccess) {
-    cout << "\nError: getting centers from GPU error with code " << errCode << endl;
-  }
-
-  printf("\nFinal cluster centers:\n");
-  for (i = 0; i < K; i++) {
-    for (j = 0; j < num_cols; j++) {
-      printf("%f ", centers[i * num_cols + j]);
-    }
-    printf("\n");
-  }
-
-  errCode = cudaMemcpy(prev_centers, dev_prev_centers, sizeof(double) * K * num_cols, cudaMemcpyDeviceToHost);
-  if (errCode != cudaSuccess) {
-    cout << "\nError: getting centers from GPU error with code " << errCode << endl;
-  }
-
-  printf("\nPrev cluster centers:\n");
-  for (i = 0; i < K; i++) {
-    for (j = 0; j < num_cols; j++) {
-      printf("%f ", prev_centers[i * num_cols + j]);
-    }
-    printf("\n");
-  }
-  printf("\n");
-
     calc_drifts<<<totalBlocks, BLOCKSIZE>>>(dev_K, dev_num_cols, dev_centers,
                                             dev_prev_centers, dev_drifts);
     cudaDeviceSynchronize();
@@ -435,16 +396,57 @@ int main(int argc, char *argv[]) {
                                               dev_num_rows, dev_num_cols, dev_K);
     cudaDeviceSynchronize();
 
-  errCode = cudaMemcpy(drifts, dev_drifts, sizeof(double) * K, cudaMemcpyDeviceToHost);
-  if (errCode != cudaSuccess) {
-    cout << "\nError: getting centers from GPU error with code " << errCode << endl;
-  }
+    errCode = cudaMemcpy(centers, dev_centers, sizeof(double) * K * num_cols, cudaMemcpyDeviceToHost);
+    if (errCode != cudaSuccess) {
+      cout << "\nError: getting centers from GPU error with code " << errCode << endl;
+    }
 
-    printf("\ndrifts:\n");
-  for (i = 0; i < K; i++) {
-      printf("%f ", drifts[i]);
-  }
+    printf("\nFinal cluster centers:\n");
+    for (i = 0; i < K; i++) {
+      for (j = 0; j < num_cols; j++) {
+        printf("%f ", centers[i * num_cols + j]);
+      }
+      printf("\n");
+    }
+
+    errCode = cudaMemcpy(prev_centers, dev_prev_centers, sizeof(double) * K * num_cols, cudaMemcpyDeviceToHost);
+    if (errCode != cudaSuccess) {
+      cout << "\nError: getting centers from GPU error with code " << errCode << endl;
+    }
+
+    printf("\nPrev cluster centers:\n");
+    for (i = 0; i < K; i++) {
+      for (j = 0; j < num_cols; j++) {
+        printf("%f ", prev_centers[i * num_cols + j]);
+      }
+      printf("\n");
+    }
+
+    errCode = cudaMemcpy(l_bounds, dev_l_bounds, sizeof(double) * K * num_rows, cudaMemcpyDeviceToHost);
+    if (errCode != cudaSuccess) {
+      cout << "\nError: getting centers from GPU error with code " << errCode << endl;
+    }
+
+    printf("\nl_bounds:\n");
+    for (i = 0; i < num_rows; i++) {
+      for (j = 0; j < K; j++) {
+        printf("%f ", l_bounds[i * K + j]);
+      }
+      printf("\n");
+    }
+    errCode = cudaMemcpy(u_bounds, dev_u_bounds, sizeof(double) * num_rows, cudaMemcpyDeviceToHost);
+    if (errCode != cudaSuccess) {
+      cout << "\nError: getting centers from GPU error with code " << errCode << endl;
+    }
+    printf("u_bounds:\n");
+    for (i = 0; i < num_rows; i++) {
+      printf("%f ", u_bounds[i]);
+    }
+
     printf("\n");
+
+
+    exit(0);
   }
 
   errCode = cudaMemcpy(centers, dev_centers, sizeof(double) * K * num_cols, cudaMemcpyDeviceToHost);
