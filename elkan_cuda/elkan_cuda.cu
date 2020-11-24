@@ -24,8 +24,8 @@ __global__ void reassign(int *dev_num_rows, int *dev_num_cols, int *dev_clusteri
                          double *dev_data_matrix, int *dev_elements_per_cluster);
 __global__ void finishReassign(int *dev_num_cols, int *dev_K, double *dev_cluster_means,
                                int *dev_elements_per_cluster);
-__global__ void drifts(int *dev_K, int *dev_num_cols, double *dev_centers,
-                       double *dev_prev_centers, double *dev_drifts);
+__global__ void calc_drifts(int *dev_K, int *dev_num_cols, double *dev_centers,
+                            double *dev_prev_centers, double *dev_drifts);
 __global__ void adjust_bounds(double *dev_u_bounds, double *dev_l_bounds, double *dev_centers,
                               double *dev_prev_centers, int *dev_clusterings, double *dev_drifts,
                               int *dev_num_rows, int *dev_num_cols, int *dev_K);
@@ -483,8 +483,8 @@ int main(int argc, char *argv[]) {
     // cpu_time += omp_get_wtime() - t_cpu_start;
 
     kernel_start = omp_get_wtime();
-    drifts<<<totalBlocks, BLOCKSIZE>>>(dev_K dev_num_cols, dev_centers,
-                                       dev_prev_centers, dev_drifts);
+    calc_drifts<<<totalBlocks, BLOCKSIZE>>>(dev_K dev_num_cols, dev_centers,
+                                            dev_prev_centers, dev_drifts);
     cudaDeviceSynchronize();
     // ###########################################
     // Adjust bounds to account for centroid drift
@@ -685,8 +685,8 @@ __global__ void finishReassign(int *dev_num_cols, int *dev_K, double *dev_cluste
 }
 
 
-__global__ void drifts(int *dev_K, int *dev_num_cols, double *dev_centers,
-                       double *dev_prev_centers, double *dev_drifts) {
+__global__ void calc_drifts(int *dev_K, int *dev_num_cols, double *dev_centers,
+                            double *dev_prev_centers, double *dev_drifts) {
   unsigned int tid = threadIdx.x + blockIdx.x * blockDim.x;
 
   if (tid >= *dev_K) {
