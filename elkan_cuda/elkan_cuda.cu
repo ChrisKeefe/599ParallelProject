@@ -183,19 +183,11 @@ int main(int argc, char *argv[]) {
   int num_iterations = 0;
   int *clusterings = (int *)calloc(num_rows, sizeof(int));
   double *cluster_means = (double *)malloc(num_cols * K * sizeof(double));
-  int elements_per_cluster[K];
   bool changes;
 
   double *l_bounds = (double *)calloc(num_rows * K, sizeof(double));
   double *u_bounds = (double *)calloc(num_rows, sizeof(double));
   double *ctr_ctr_dists = (double *)malloc(K * K * sizeof(double));
-
-  // These need better names
-  double s[K];
-
-  int this_ctr, this_pt;
-  double tmp_diff[num_cols];
-  double min_diff;
 
   double *dev_data_matrix;
   double *dev_centers;
