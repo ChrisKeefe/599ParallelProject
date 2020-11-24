@@ -215,17 +215,9 @@ int main(int argc, char *argv[]) {
   int *dev_num_cols;
   int *dev_K;
 
-  double kernel_start;
-  double kernel_time = 0;
-  double transfer_time = 0;
-  double t_cpu_start = 0;
-  double cpu_time;
-
   cudaError_t errCode = cudaSuccess;
 
   double t_start = omp_get_wtime();
-  double t_transfer_start = t_start;
-
   errCode = cudaMalloc(&dev_data_matrix, sizeof(double) * num_rows * num_cols);
   if (errCode != cudaSuccess) {
     cout << "\nError: data_matrix alloc error with code " << errCode << endl;
@@ -336,86 +328,30 @@ int main(int argc, char *argv[]) {
     cout << "\nError: memsetting cluster means error with code " << errCode << endl;
   }
 
-  transfer_time += omp_get_wtime() - t_transfer_start;
-  cout << "Initial transfer time: " << transfer_time << " seconds" << endl;
-
   // #########################
   // # BEGIN ELKAN MAIN LOOP #
   // #########################
-
-  // TODO: I suspect we're going to need additional memory allocations:
-  // u_bound, l_bound, s, z, drifts, ctr_ctr_dists, prev_clousterings, bound_not_tight?
-
-  // #pragma omp parallel for private(this_pt) shared(num_rows, u_bounds)
-  // for (this_pt = 0; this_pt < num_rows; this_pt++) {
-  //   u_bounds[this_pt] = INFINITY;
-  // }
-
-  kernel_start = omp_get_wtime();
   init_ubound<<<totalBlocks, BLOCKSIZE>>>(dev_num_rows, dev_u_bounds);
   cudaDeviceSynchronize();
-  kernel_time += omp_get_wtime() - kernel_start;
 
   while (1) {
     changes = false;
-    // send changes flag to GPU and time the transfer
-
-    // ###############################################################################
-    // Calculate center-center distances with OpenMP (K>=64 uncommon, xfer too costly)
-    // ###############################################################################
-    // t_cpu_start = omp_get_wtime();
-    // #pragma omp parallel for private (i, j, tmp_diff, min_diff) \
-    //     shared(ctr_ctr_dists, centers, num_cols)
-    // for (i = 0; i < K; i++) {
-    //   min_diff = INFINITY;
-
-    //   for (j = 0; j < K; j++) {
-    //     vector_sub(tmp_diff, centers + i * num_cols, centers + j * num_cols, num_cols);
-    //     ctr_ctr_dists[i * K + j] = vector_L2_norm(tmp_diff, num_cols);
-
-    //     if (ctr_ctr_dists[i * K + j] < min_diff && i != j) {
-    //       min_diff = ctr_ctr_dists[i * K + j];
-    //     }
-    //   }
-
-    //   s[i] = min_diff / 2;
-    // }
-    // cpu_time += omp_get_wtime() - t_cpu_start;
-    t_transfer_start = omp_get_wtime();
     errCode = cudaMemcpy(dev_changes, &changes, sizeof(bool), cudaMemcpyHostToDevice);
     if (errCode != cudaSuccess) {
       cout << "\nError: changes memcpy error with code " << errCode << endl;
     }
-
-    // errCode = cudaMemcpy(dev_s, s, sizeof(double) * K, cudaMemcpyHostToDevice);
-    // if (errCode != cudaSuccess) {
-    //   cout << "\nError: s memcpy error with code " << errCode << endl;
-    // }
-
-    // errCode = cudaMemcpy(dev_u_bounds, u_bounds, sizeof(double) * num_rows, cudaMemcpyHostToDevice);
-    // if (errCode != cudaSuccess) {
-    //   cout << "\nError: u_bounds memcpy error with code " << errCode << endl;
-    // }
-
-    // errCode = cudaMemcpy(dev_l_bounds, l_bounds, sizeof(double) * num_rows * K, cudaMemcpyHostToDevice);
-    // if (errCode != cudaSuccess) {
-    //   cout << "\nError: l_bounds memcpy error with code " << errCode << endl;
-    // }
-    transfer_time += omp_get_wtime() - t_transfer_start;
 
     // #################################
     // Assign points to cluster centers
     // #################################
     // TODO: transfer data, implement and run assign_points kernel, time
     // Assign points to cluster centers
-    kernel_start = omp_get_wtime();
     ctr_ctr_dist_calc<<<totalBlocks, BLOCKSIZE>>>(dev_K, dev_num_cols, dev_ctr_ctr_dists, dev_centers, dev_s);
     cudaDeviceSynchronize();
     elkan<<<totalBlocks, BLOCKSIZE>>>(dev_num_rows, dev_num_cols, dev_l_bounds, dev_u_bounds,
                                       dev_clusterings, dev_ctr_ctr_dists, dev_centers, dev_data_matrix,
                                       dev_changes, dev_K, dev_s);
     cudaDeviceSynchronize();
-    kernel_time += omp_get_wtime() - kernel_start;
 
     // ######################################################################
     // If we didn't change any cluster assignments, we've reached convergence
@@ -437,7 +373,6 @@ int main(int argc, char *argv[]) {
     // #######################################
     // Find cluster means and reassign centers
     // #######################################
-    t_transfer_start = omp_get_wtime();
     errCode = cudaMemset(dev_elements_per_cluster, 0, K * sizeof(int));
     if (errCode != cudaSuccess) {
       cout << "\nError: memsetting elements per cluster error with code " << errCode << endl;
@@ -452,91 +387,31 @@ int main(int argc, char *argv[]) {
     if (errCode != cudaSuccess) {
       cout << "\nError: centers to prev centers memcpy error with code " << errCode << endl;
     }
-    transfer_time += omp_get_wtime() - t_transfer_start;
 
-    kernel_start = omp_get_wtime();
     reassign<<<totalBlocks, BLOCKSIZE>>>(dev_num_rows, dev_num_cols, dev_clusterings, dev_cluster_means, dev_data_matrix, dev_elements_per_cluster);
     cudaDeviceSynchronize();
-
     finishReassign<<<totalBlocks, BLOCKSIZE>>>(dev_num_cols, dev_K, dev_cluster_means, dev_elements_per_cluster);
     cudaDeviceSynchronize();
-    kernel_time += omp_get_wtime() - kernel_start;
 
     // Replace the old cluster means with the new using only three assignments.
     double *temp = dev_centers;
     dev_centers = dev_cluster_means;
     dev_cluster_means = temp;
 
-    // ###########################################
-    // Compute centroid drift since last iteration
-    // ###########################################
-    // #pragma omp parallel for private(this_ctr, tmp_diff) \
-    //         shared(centers, prev_centers, num_cols, drifts)
-    // for (this_ctr = 0; this_ctr < K; this_ctr++) {
-    //   vector_sub(tmp_diff, &centers[this_ctr], &prev_centers[this_ctr], num_cols);
-    //   drifts[this_ctr] = vector_L2_norm(tmp_diff, num_cols);
-    // }
-    // cpu_time += omp_get_wtime() - t_cpu_start;
-
-    kernel_start = omp_get_wtime();
     calc_drifts<<<totalBlocks, BLOCKSIZE>>>(dev_K, dev_num_cols, dev_centers,
                                             dev_prev_centers, dev_drifts);
     cudaDeviceSynchronize();
-    // ###########################################
-    // Adjust bounds to account for centroid drift
-    // ###########################################
-    // TODO: transfer data, call adjust_bounds (below), time
-    // errCode = cudaMemcpy(dev_drifts, drifts, sizeof(double) * K, cudaMemcpyHostToDevice);
-    // if (errCode != cudaSuccess) {
-    //   cout << "\nError: drifts memcpy error with code " << errCode << endl;
-    // }
-
-    // errCode = cudaMemcpy(dev_centers, centers, sizeof(double) * K * num_cols, cudaMemcpyHostToDevice);
-    // if (errCode != cudaSuccess) {
-    //   cout << "\nError: centers memcpy error with code " << errCode << endl;
-    // }
-
-    // errCode = cudaMemcpy(dev_prev_centers, prev_centers, sizeof(double) * K * num_cols, cudaMemcpyHostToDevice);
-    // if (errCode != cudaSuccess) {
-    //   cout << "\nError: prev centers memcpy error with code " << errCode << endl;
-    // }
     adjust_bounds<<<totalBlocks, BLOCKSIZE>>>(dev_u_bounds, dev_l_bounds, dev_centers,
                                               dev_prev_centers, dev_clusterings, dev_drifts,
                                               dev_num_rows, dev_num_cols, dev_K);
     cudaDeviceSynchronize();
-    kernel_time += omp_get_wtime() - kernel_start;
-
-  errCode = cudaMemcpy(centers, dev_centers, sizeof(double) * K * num_cols, cudaMemcpyDeviceToHost);
-  if (errCode != cudaSuccess) {
-    cout << "\nError: getting centers from GPU error with code " << errCode << endl;
-  }
-  printf("\nFinal cluster centers:\n");
-  for (i = 0; i < K; i++) {
-    for (j = 0; j < num_cols; j++) {
-      printf("%f ", centers[i * num_cols + j]);
-    }
-    printf("\n");
-  }
-  errCode = cudaMemcpy(prev_centers, dev_prev_centers, sizeof(double) * K * num_cols, cudaMemcpyDeviceToHost);
-  if (errCode != cudaSuccess) {
-    cout << "\nError: getting centers from GPU error with code " << errCode << endl;
-  }
-  printf("\nPrev cluster centers:\n");
-  for (i = 0; i < K; i++) {
-    for (j = 0; j < num_cols; j++) {
-      printf("%f ", prev_centers[i * num_cols + j]);
-    }
-    printf("\n");
-  }
   }
 
-  t_transfer_start = omp_get_wtime();
   errCode = cudaMemcpy(centers, dev_centers, sizeof(double) * K * num_cols, cudaMemcpyDeviceToHost);
   if (errCode != cudaSuccess) {
     cout << "\nError: getting centers from GPU error with code " << errCode << endl;
   }
   double tend = omp_get_wtime();
-  transfer_time += tend - t_transfer_start;
 
   printf("\nFinal cluster centers:\n");
   for (i = 0; i < K; i++) {
@@ -547,9 +422,7 @@ int main(int argc, char *argv[]) {
   }
 
   printf("\nNum iterations: %d\n", num_iterations);
-  printf("Time taken for %d clusters: %f seconds\nkernel: %f seconds"
-         "\ntotaltransfer: %f seconds\nCPU time: %f seconds\n\n",
-         K, tend - t_start, kernel_time, transfer_time, cpu_time);
+  printf("Time taken for %d clusters: %f seconds\n\n", K, tend - t_start);
 
   free(data_matrix);
   free(clusterings);
@@ -733,7 +606,9 @@ __global__ void adjust_bounds(double *dev_u_bounds, double *dev_l_bounds, double
                               int *dev_num_rows, int *dev_num_cols, int *dev_K) {
   unsigned int tid = threadIdx.x + blockIdx.x * blockDim.x;
 
-  if (tid >= *dev_num_rows) return;
+  if (tid >= *dev_num_rows) {
+    return;
+  }
 
   double temp;
   double vec_norm = 0;

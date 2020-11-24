@@ -299,6 +299,21 @@ int main(int argc, char *argv[]) {
         l_bounds[this_pt * K + this_ctr] -= drifts[this_ctr];
       }
     }
+
+  printf("\nFinal cluster centers:\n");
+  for (i = 0; i < K; i++) {
+    for (j = 0; j < num_cols; j++) {
+      printf("%f ", centers[i][j]);
+    }
+    printf("\n");
+  }
+  printf("\nPrev cluster centers:\n");
+  for (i = 0; i < K; i++) {
+    for (j = 0; j < num_cols; j++) {
+      printf("%f ", prev_centers[i][j]);
+    }
+    printf("\n");
+  }
   }
 
   double tend = omp_get_wtime();
