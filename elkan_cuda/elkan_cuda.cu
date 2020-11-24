@@ -408,6 +408,17 @@ int main(int argc, char *argv[]) {
                                               dev_num_rows, dev_num_cols, dev_K);
     cudaDeviceSynchronize();
 
+  errCode = cudaMemcpy(drifts, dev_drifts, sizeof(double) * K, cudaMemcpyDeviceToHost);
+  if (errCode != cudaSuccess) {
+    cout << "\nError: getting centers from GPU error with code " << errCode << endl;
+  }
+
+    printf("\ndrifts:\n");
+  for (i = 0; i < K; i++) {
+      printf("%f ", drifts[i]);
+  }
+    printf("\n");
+
   errCode = cudaMemcpy(centers, dev_centers, sizeof(double) * K * num_cols, cudaMemcpyDeviceToHost);
   if (errCode != cudaSuccess) {
     cout << "\nError: getting centers from GPU error with code " << errCode << endl;

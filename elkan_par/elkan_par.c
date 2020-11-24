@@ -307,6 +307,13 @@ int main(int argc, char *argv[]) {
       }
     }
 
+  printf("\ndrifts:\n");
+  for (i = 0; i < K; i++) {
+      printf("%f ", drifts[i]);
+  }
+    printf("\n");
+
+
   printf("\nFinal cluster centers:\n");
   for (i = 0; i < K; i++) {
     for (j = 0; j < num_cols; j++) {
