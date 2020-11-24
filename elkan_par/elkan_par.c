@@ -197,28 +197,21 @@ int main(int argc, char *argv[]) {
       min_diff = INFINITY;
 
       for (j = 0; j < K; j++) {
+        if (i == j) {
+          ctr_ctr_dists[i * K + i] = 0;
+          continue;
+        }
+
         vector_sub(tmp_diff, centers[i], centers[j], num_cols);
         ctr_ctr_dists[i * K + j] = vector_L2_norm(tmp_diff, num_cols);
 
-        if (ctr_ctr_dists[i * K + j] < min_diff && i != j) {
+        if (ctr_ctr_dists[i * K + j] < min_diff) {
           min_diff = ctr_ctr_dists[i * K + j];
         }
       }
 
       s[i] = min_diff / 2;
     }
-
-    for (int i = 0; i < K; i++) {
-      for (int j = 0; j < K; j++) {
-        printf("%f ", ctr_ctr_dists[i * K + j]);
-      }
-      printf("\n");
-    }
-    printf("\n");
-    for (int i = 0; i < K; i++) {
-      printf("%f\n", s[i]);
-    }
-    printf("\n");
 
     // Assign points to cluster centers
     #pragma omp parallel for private (this_pt, this_ctr, z, tmp_diff, ubound_not_tight) \
@@ -232,9 +225,6 @@ int main(int argc, char *argv[]) {
                   ctr_ctr_dists[clusterings[this_pt] * K + this_ctr] / 2);
 
           if (this_ctr == clusterings[this_pt] || u_bounds[this_pt] <= z) {
-        if (this_ctr == 2) {
-          printf("tid %d\ncluster %d\nu_bound %f\nz %f\n\n", this_pt, clusterings[this_pt], u_bounds[this_pt], z);
-        }
             continue;
           }
 

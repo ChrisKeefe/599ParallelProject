@@ -194,10 +194,15 @@ int main(int argc, char *argv[]){
       min_diff = INFINITY;
 
       for (j = 0; j < K; j++) {
+        if (i == j) {
+          ctr_ctr_dists[i * K + i] = 0;
+          continue;
+        }
+
         vector_sub(tmp_diff, centers[i], centers[j], num_cols);
         ctr_ctr_dists[i * K + j] = vector_L2_norm(tmp_diff, num_cols);
 
-        if (ctr_ctr_dists[i * K + j] < min_diff && i != j) {
+        if (ctr_ctr_dists[i * K + j] < min_diff) {
           min_diff = ctr_ctr_dists[i * K + j];
         }
       }
