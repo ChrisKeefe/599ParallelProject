@@ -38,6 +38,7 @@ void vector_elementwise_avg(double *dst, double *a, int denominator, int length)
 // Program should take K, a data set (.csv), a delimiter,
 // a binary flag data_contains_header, and a binary flag to drop labels
 int main(int argc, char *argv[]){
+printf("HELLO!");
   // Seed for consistent cluster center selection
   // In a working implementation, seeding would be variable (e.g. time(NULL))
   srand(111);
@@ -81,7 +82,6 @@ int main(int argc, char *argv[]){
   reader = CsvParser_new(data_fp, delimiter, has_header_row);
 
   double **data_matrix = malloc(num_rows * sizeof(double *));
-  int i;
   for (i = 0; i < num_rows; i++) {
     data_matrix[i] = malloc(num_cols * sizeof(double));
   }
@@ -135,7 +135,6 @@ int main(int argc, char *argv[]){
   }
 
   printf("Initial cluster centers:\n");
-  int i, j;
   for (i = 0; i < K; i++) {
     for (j = 0; j < num_cols; j++) {
       printf("%f ", centers[i][j]);
@@ -154,7 +153,8 @@ int main(int argc, char *argv[]){
     // Assign points to cluster centers
     changes = false;
 
-    int center, observation, new_center, col;
+    int new_center = -999;
+    int center, observation, col;
     double idx_diff, current_diff, best_diff;
     #pragma omp parallel for \
       private(center, observation, idx_diff, current_diff, best_diff, new_center, col) \
@@ -219,7 +219,6 @@ int main(int argc, char *argv[]){
   double tend = omp_get_wtime();
 
   printf("\nFinal cluster centers:\n");
-  int i, j;
   for (i = 0; i < K; i++) {
     for (j = 0; j < num_cols; j++) {
       printf("%f ", centers[i][j]);
@@ -230,7 +229,6 @@ int main(int argc, char *argv[]){
   printf("\nNum iterations: %d\n", num_iterations);
   printf("Time taken for %d clusters: %f seconds\n", K, tend - tstart);
 
-  int i;
   for (i = 0; i < num_rows; i++) {
     free(data_matrix[i]);
   }
