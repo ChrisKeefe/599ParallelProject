@@ -16,6 +16,7 @@ __global__ void lloyds(double *dev_data_matrix, double *dev_centers, int *dev_cl
                        bool *dev_changes, int *dev_num_rows, int *dev_num_cols, int *dev_K);
 __global__ void reassign(int *dev_num_rows, int *dev_num_cols, int *dev_clusterings, double *dev_cluster_means,
                          double *dev_data_matrix, int *dev_elements_per_cluster);
+__global__ void finishReassign(int *dev_num_cols, int *dev_K, double *dev_cluster_means, int *dev_elements_per_cluster);
 
 void warmUpGPU();
 
@@ -55,8 +56,8 @@ int main(int argc, char *argv[]) {
   int i, j;
 
   if (argc < 6) {
-      printf("Incorrect number of args. Should be 5, received %d\n", argc - 1);
-      exit(1);
+    printf("Incorrect number of args. Should be 5, received %d\n", argc - 1);
+    exit(1);
   }
 
   int K = atoi(argv[1]);
@@ -153,8 +154,7 @@ int main(int argc, char *argv[]) {
 
   int num_iterations = 0;
   int *clusterings = (int *)malloc(num_rows * sizeof(int));
-  double cluster_means[num_cols * K];
-  int elements_per_cluster[K];
+  double *cluster_means = (double *)malloc(num_cols * K * sizeof(double));
   bool changes;
 
   double *dev_data_matrix;
@@ -167,17 +167,9 @@ int main(int argc, char *argv[]) {
   int *dev_num_cols;
   int *dev_K;
 
-
-  double kernel_start;
-  double kernel_time = 0;
-  double transfer_time = 0;
-  double t_cpu_start = 0;
-  double cpu_time;
-
   cudaError_t errCode = cudaSuccess;
-  
+
   double t_start = omp_get_wtime();
-  double t_transfer_start = t_start;
   errCode = cudaMalloc(&dev_data_matrix, sizeof(double) * num_rows * num_cols);
   if (errCode != cudaSuccess) {
     cout << "\nError: data_matrix alloc error with code " << errCode << endl;
@@ -201,6 +193,11 @@ int main(int argc, char *argv[]) {
   errCode = cudaMalloc(&dev_centers, sizeof(double) * K * num_cols);
   if (errCode != cudaSuccess) {
     cout << "\nError: centers alloc error with code " << errCode << endl;
+  }
+
+  errCode = cudaMemcpy(dev_centers, centers, sizeof(double) * K * num_cols, cudaMemcpyHostToDevice);
+  if (errCode != cudaSuccess) {
+    cout << "\nError: centers memcpy error with code " << errCode << endl;
   }
 
   errCode = cudaMalloc(&dev_clusterings, sizeof(int) * num_rows);
@@ -243,37 +240,23 @@ int main(int argc, char *argv[]) {
     cout << "\nError: K memcpy error with code " << errCode << endl;
   }
 
-  transfer_time += omp_get_wtime() - t_transfer_start;
-  cout << "Initial transfer time: " << transfer_time << " seconds" << endl;
-
   while (1) {
     // Assign points to cluster centers
     changes = false;
 
-    t_transfer_start = omp_get_wtime();
     errCode = cudaMemcpy(dev_changes, &changes, sizeof(bool), cudaMemcpyHostToDevice);
     if (errCode != cudaSuccess) {
       cout << "\nError: changes memcpy error with code " << errCode << endl;
     }
 
-    errCode = cudaMemcpy(dev_centers, centers, sizeof(double) * K * num_cols, cudaMemcpyHostToDevice);
-    if (errCode != cudaSuccess) {
-      cout << "\nError: centers memcpy error with code " << errCode << endl;
-    }
-    transfer_time += omp_get_wtime() - t_transfer_start;
-
-    kernel_start = omp_get_wtime();
     lloyds<<<totalBlocks, BLOCKSIZE>>>(dev_data_matrix, dev_centers, dev_clusterings, dev_changes, dev_num_rows, dev_num_cols, dev_K);
     cudaDeviceSynchronize();
-    kernel_time += omp_get_wtime() - kernel_start;
 
     //copy data from device to host
-    t_transfer_start = omp_get_wtime();
     errCode = cudaMemcpy(&changes, dev_changes, sizeof(bool), cudaMemcpyDeviceToHost);
     if (errCode != cudaSuccess) {
-      cout << "\nError: getting changes result from GPU error with code " << errCode << endl;
+      cout << "\nError: getting changes from GPU error with code " << errCode << endl;
     }
-    transfer_time += omp_get_wtime() - t_transfer_start;
 
     // If we didn't change any cluster assignments, we've reached convergence
     if (!changes) {
@@ -293,36 +276,21 @@ int main(int argc, char *argv[]) {
       cout << "\nError: memsetting cluster means error with code " << errCode << endl;
     }
 
-    kernel_start = omp_get_wtime();
     reassign<<<totalBlocks, BLOCKSIZE>>>(dev_num_rows, dev_num_cols, dev_clusterings, dev_cluster_means, dev_data_matrix, dev_elements_per_cluster);
     cudaDeviceSynchronize();
-    kernel_time += omp_get_wtime() - kernel_start;
-
-    t_transfer_start = omp_get_wtime();
-    errCode = cudaMemcpy(elements_per_cluster, dev_elements_per_cluster, sizeof(int) * K, cudaMemcpyDeviceToHost);
-    if (errCode != cudaSuccess) {
-      cout << "\nError: getting elements per cluster from GPU error with code " << errCode << endl;
-    }
-
-    errCode = cudaMemcpy(cluster_means, dev_cluster_means, sizeof(double) * num_cols * K, cudaMemcpyDeviceToHost);
-    if (errCode != cudaSuccess) {
-      cout << "\nError: getting cluster means from GPU error with code " << errCode << endl;
-    }
-    transfer_time += omp_get_wtime() - t_transfer_start;
-
-    t_cpu_start = omp_get_wtime();
-    for (int i = 0; i < K; i++) {
-      vector_elementwise_avg(cluster_means + i * num_cols, cluster_means + i * num_cols, elements_per_cluster[i], num_cols);
-    }
+    finishReassign<<<totalBlocks, BLOCKSIZE>>>(dev_num_cols, dev_K, dev_cluster_means, dev_elements_per_cluster);
+    cudaDeviceSynchronize();
 
     // Replace the old cluster means with the new using only three assignments.
-    double *temp = centers;
-    centers = cluster_means;
-    cluster_means = temp;
-
-    cpu_time += omp_get_wtime() - t_cpu_start;
+    double *temp = dev_centers;
+    dev_centers = dev_cluster_means;
+    dev_cluster_means = temp;
   }
 
+  errCode = cudaMemcpy(centers, dev_centers, sizeof(double) * K * num_cols, cudaMemcpyDeviceToHost);
+  if (errCode != cudaSuccess) {
+    cout << "\nError: getting centers from GPU error with code " << errCode << endl;
+  }
   double tend = omp_get_wtime();
 
   printf("\nFinal cluster centers:\n");
@@ -334,9 +302,7 @@ int main(int argc, char *argv[]) {
   }
 
   printf("\nNum iterations: %d\n", num_iterations);
-  printf("Time taken for %d clusters: %f seconds\nkernel: %f seconds"
-         "\ntotaltransfer: %f seconds\nCPU time: %f seconds\n\n",
-         K, tend - t_start, kernel_time, transfer_time, cpu_time);
+  printf("Time taken for %d clusters: %f seconds\n\n", K, tend - t_start);
 
   free(data_matrix);
   free(clusterings);
@@ -392,6 +358,19 @@ __global__ void reassign(int *dev_num_rows, int *dev_num_cols, int *dev_clusteri
   }
 
   atomicAdd(&dev_elements_per_cluster[cluster], int(1));
+}
+
+
+__global__ void finishReassign(int *dev_num_cols, int *dev_K, double *dev_cluster_means, int *dev_elements_per_cluster) {
+  unsigned int tid = threadIdx.x + blockIdx.x * blockDim.x;
+
+  if (tid >= *dev_K) {
+    return;
+  }
+
+  for (int i = 0; i < *dev_num_cols; i++) {
+    dev_cluster_means[tid * *dev_num_cols + i] /= dev_elements_per_cluster[tid];
+  }
 }
 
 

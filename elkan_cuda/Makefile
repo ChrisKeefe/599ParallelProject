@@ -3,14 +3,13 @@ CFLAGS = -Xcompiler -fopenmp
 # TODO: replace GPUCAP with architecture-specific values. 60 covers P100
 GPUCAP = 60
 ARCHFLAGS = -arch=compute_${GPUCAP} -code=sm_${GPUCAP}
-CFLAGS = -Wall
 LFLAGS = -lm -lcuda
+OPTFLAGS = -Xcompiler -fopenmp
 
 .phony = clean run test time
 
 elkan_cuda:
-	module load cuda
-	${CC} ${ARCHFLAGS} ${CFLAGS} ${LFLAGS} elkan_cuda.c csvparser.c -o elkan_cuda
+	${CC} ${ARCHFLAGS} ${CFLAGS} ${LFLAGS} ${OPTFLAGS} elkan_cuda.cu csvparser.c -o elkan_cuda
 
 run: elkan_cuda
 	./jobscripts/elkan_cuda_run.sh

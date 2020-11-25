@@ -3,6 +3,7 @@
 #include <math.h>
 #include <time.h>
 #include <stdbool.h>
+#include <string.h>
 #include <omp.h>
 
 #include "csvparser.h"
@@ -173,7 +174,7 @@ int main(int argc, char *argv[]) {
 
   int this_ctr, this_pt;
   double tmp_diff[num_cols];
-  double min_diff = INFINITY;
+  double min_diff;
 
   int elements_in_cluster;
   double cluster_means[num_cols];
@@ -193,7 +194,14 @@ int main(int argc, char *argv[]) {
     #pragma omp parallel for private (i, j, tmp_diff, min_diff) \
         shared(ctr_ctr_dists, centers, num_cols)
     for (i = 0; i < K; i++) {
+      min_diff = INFINITY;
+
       for (j = 0; j < K; j++) {
+        if (i == j) {
+          ctr_ctr_dists[i * K + j] = 0;
+          continue;
+        }
+
         vector_sub(tmp_diff, centers[i], centers[j], num_cols);
         ctr_ctr_dists[i * K + j] = vector_L2_norm(tmp_diff, num_cols);
 
@@ -251,14 +259,8 @@ int main(int argc, char *argv[]) {
 
     num_iterations++;
 
-// TODO: should this be aligned with the memcopy approach used in elkan_cuda?
     // Capture current centers for later re-use
-    #pragma omp parallel for private(i, j) shared(K, num_cols, prev_centers, centers)
-    for (this_ctr = 0; this_ctr < K; this_ctr++) {
-      for (j = 0; j < num_cols; j++) {
-        prev_centers[this_ctr][j] = centers[this_ctr][j];
-      }
-    }
+    memcpy(prev_centers, centers, num_cols * K * sizeof(double));
 
     // Calculate cluster mean for each cluster
     #pragma omp parallel for \

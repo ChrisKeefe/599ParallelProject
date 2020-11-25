@@ -3,6 +3,7 @@
 #include <math.h>
 #include <time.h>
 #include <stdbool.h>
+#include <string.h>
 #include <omp.h>
 
 #include "csvparser.h"
@@ -184,13 +185,20 @@ int main(int argc, char *argv[]){
     u_bounds[this_pt] = INFINITY;
   }
 
-  while( 1 ) {
+  while(1)  {
     changes = false;
 
     // Calculate center-center distances
     // TODO: reduce number of distance calculations
     for (i = 0; i < K; i++) {
+      min_diff = INFINITY;
+
       for (j = 0; j < K; j++) {
+        if (i == j) {
+          ctr_ctr_dists[i * K + j] = 0;
+          continue;
+        }
+
         vector_sub(tmp_diff, centers[i], centers[j], num_cols);
         ctr_ctr_dists[i * K + j] = vector_L2_norm(tmp_diff, num_cols);
 
@@ -244,11 +252,7 @@ int main(int argc, char *argv[]){
     num_iterations++;
 
     // Capture current centers for later re-use
-    for (this_ctr = 0; this_ctr < K; this_ctr++) {
-      for (j = 0; j < num_cols; j++) {
-        prev_centers[this_ctr][j] = centers[this_ctr][j];
-      }
-    }
+    memcpy(prev_centers, centers, num_cols * K * sizeof(double));
 
     // Calculate cluster mean for each cluster
     for (this_ctr = 0; this_ctr < K; this_ctr++) {

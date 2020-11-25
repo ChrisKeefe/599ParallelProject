@@ -4,6 +4,7 @@
 #include <math.h>
 #include <time.h>
 #include <stdbool.h>
+#include <string.h>
 #include <omp.h>
 
 #include "csvparser.h"
@@ -12,11 +13,22 @@
 
 using namespace std;
 
-__global__ void adjust_bounds( double *dev_u_bounds, double *dev_l_bounds, double *dev_centers, 
-                               double *dev_prev_centers, int *dev_clustering, double *dev_drifts,
-                               int *dev_num_rows, int *dev_num_cols, int *dev_K){
+__global__ void init_ubound(int *dev_num_rows, double *dev_u_bounds);
+__global__ void ctr_ctr_dist_calc(int *dev_K, int *dev_num_cols, double *dev_ctr_ctr_dists,
+                                  double *dev_centers, double *dev_s);
+__global__ void elkan(int *dev_num_rows, int *dev_num_cols, double *dev_l_bounds,
+                      double *dev_u_bounds, int *dev_clusterings, double *dev_ctr_ctr_dists,
+                      double *dev_centers, double *dev_data_matrix, bool *dev_changes, int *dev_K,
+                      double *dev_s);
 __global__ void reassign(int *dev_num_rows, int *dev_num_cols, int *dev_clusterings, double *dev_cluster_means,
                          double *dev_data_matrix, int *dev_elements_per_cluster);
+__global__ void finishReassign(int *dev_num_cols, int *dev_K, double *dev_cluster_means,
+                               int *dev_elements_per_cluster);
+__global__ void calc_drifts(int *dev_K, int *dev_num_cols, double *dev_centers,
+                            double *dev_prev_centers, double *dev_drifts);
+__global__ void adjust_bounds(double *dev_u_bounds, double *dev_l_bounds, double *dev_centers,
+                              double *dev_prev_centers, int *dev_clusterings, double *dev_drifts,
+                              int *dev_num_rows, int *dev_num_cols, int *dev_K);
 
 void warmUpGPU();
 
@@ -44,6 +56,21 @@ void vector_elementwise_avg(double *dst, double *a, int denominator, int length)
   }
 }
 
+double vector_L2_norm(double *a, int length) {
+  double vec_norm = 0;
+
+  for (int i = 0; i < length; i++) {
+    vec_norm += a[i] * a[i];
+  }
+
+  return sqrt(vec_norm);
+}
+
+void vector_sub(double *dst, double *a, double *b, int length) {
+  for (int i = 0; i < length; i++) {
+    dst[i] = a[i] - b[i];
+  }
+}
 
 // Program should take K, a data set (.csv), a delimiter,
 // a binary flag data_contains_header, and a binary flag to drop labels
@@ -56,8 +83,8 @@ int main(int argc, char *argv[]) {
   int i, j;
 
   if (argc < 6) {
-      printf("Incorrect number of args. Should be 5, received %d\n", argc - 1);
-      exit(1);
+    printf("Incorrect number of args. Should be 5, received %d\n", argc - 1);
+    exit(1);
   }
 
   int K = atoi(argv[1]);
@@ -148,20 +175,29 @@ int main(int argc, char *argv[]) {
     printf("\n");
   }
   printf("\n");
-  
+
   // Create vars and allocate data for GPU
   const unsigned int totalBlocks = ceil(num_rows * 1.0 / BLOCKSIZE);
   warmUpGPU();
 
   int num_iterations = 0;
-  int *clusterings = (int *)malloc(num_rows * sizeof(int));
-  double cluster_means[num_cols * K];
-  int elements_per_cluster[K];
+  int *clusterings = (int *)calloc(num_rows, sizeof(int));
+  double *cluster_means = (double *)malloc(num_cols * K * sizeof(double));
   bool changes;
+
+  double *l_bounds = (double *)calloc(num_rows * K, sizeof(double));
+  double *u_bounds = (double *)calloc(num_rows, sizeof(double));
+  double *ctr_ctr_dists = (double *)malloc(K * K * sizeof(double));
 
   double *dev_data_matrix;
   double *dev_centers;
+  double *dev_prev_centers;
   double *dev_cluster_means;
+  double *dev_u_bounds;
+  double *dev_l_bounds;
+  double *dev_drifts;
+  double *dev_s;
+  double *dev_ctr_ctr_dists;
   int *dev_elements_per_cluster;
   int *dev_clusterings;
   bool *dev_changes;
@@ -169,18 +205,9 @@ int main(int argc, char *argv[]) {
   int *dev_num_cols;
   int *dev_K;
 
-
-  double kernel_start;
-  double kernel_time = 0;
-  double transfer_time = 0;
-  double t_cpu_start = 0;
-  double cpu_time;
-
   cudaError_t errCode = cudaSuccess;
-  
-  double t_start = omp_get_wtime();
-  double t_transfer_start = t_start;
 
+  double t_start = omp_get_wtime();
   errCode = cudaMalloc(&dev_data_matrix, sizeof(double) * num_rows * num_cols);
   if (errCode != cudaSuccess) {
     cout << "\nError: data_matrix alloc error with code " << errCode << endl;
@@ -205,7 +232,12 @@ int main(int argc, char *argv[]) {
   if (errCode != cudaSuccess) {
     cout << "\nError: centers alloc error with code " << errCode << endl;
   }
-  
+
+  errCode = cudaMemcpy(dev_centers, centers, sizeof(double) * K * num_cols, cudaMemcpyHostToDevice);
+  if (errCode != cudaSuccess) {
+    cout << "\nError: centers memcpy error with code " << errCode << endl;
+  }
+
   errCode = cudaMalloc(&dev_clusterings, sizeof(int) * num_rows);
   if (errCode != cudaSuccess) {
     cout << "\nError: clusterings alloc error with code " << errCode << endl;
@@ -246,54 +278,72 @@ int main(int argc, char *argv[]) {
     cout << "\nError: K memcpy error with code " << errCode << endl;
   }
 
-  transfer_time += omp_get_wtime() - t_transfer_start;
-  cout << "Initial transfer time: " << transfer_time << " seconds" << endl;
+  errCode = cudaMalloc(&dev_u_bounds, sizeof(double) * num_rows);
+  if (errCode != cudaSuccess) {
+    cout << "\nError: u bounds alloc error with code " << errCode << endl;
+  }
+
+  errCode = cudaMalloc(&dev_l_bounds, sizeof(double) * num_rows * K);
+  if (errCode != cudaSuccess) {
+    cout << "\nError: l bounds alloc error with code " << errCode << endl;
+  }
+
+  errCode = cudaMalloc(&dev_drifts, sizeof(double) * K);
+  if (errCode != cudaSuccess) {
+    cout << "\nError: drifts alloc error with code " << errCode << endl;
+  }
+
+  errCode = cudaMalloc(&dev_prev_centers, sizeof(double) * K * num_cols);
+  if (errCode != cudaSuccess) {
+    cout << "\nError: prev centers alloc error with code " << errCode << endl;
+  }
+
+  errCode = cudaMalloc(&dev_s, sizeof(double) * K);
+  if (errCode != cudaSuccess) {
+    cout << "\nError: s alloc error with code " << errCode << endl;
+  }
+
+  errCode = cudaMalloc(&dev_ctr_ctr_dists, sizeof(double) * K * K);
+  if (errCode != cudaSuccess) {
+    cout << "\nError: ctr ctr dists alloc error with code " << errCode << endl;
+  }
+
+  errCode = cudaMemset(dev_clusterings, 0, num_rows * sizeof(int));
+  if (errCode != cudaSuccess) {
+    cout << "\nError: memsetting cluster means error with code " << errCode << endl;
+  }
 
   // #########################
   // # BEGIN ELKAN MAIN LOOP #
   // #########################
-  
-  // TODO: I suspect we're going to need additional memory allocations: 
-  // u_bound, l_bound, s, z, drifts, ctr_ctr_dists, prev_clousterings, bound_not_tight?
+  init_ubound<<<totalBlocks, BLOCKSIZE>>>(dev_num_rows, dev_u_bounds);
+  cudaDeviceSynchronize();
 
   while (1) {
     changes = false;
-    // send changes flag to GPU and time the transfer
-    t_transfer_start = omp_get_wtime();
     errCode = cudaMemcpy(dev_changes, &changes, sizeof(bool), cudaMemcpyHostToDevice);
     if (errCode != cudaSuccess) {
-    cout << "\nError: changes memcpy error with code " << errCode << endl;
-    transfer_time += omp_get_wtime() - t_transfer_start;
-
-    // ###############################################################################
-    // Calculate center-center distances with OpenMP (K>=64 uncommon, xfer too costly)
-    // ###############################################################################
-    #pragma omp parallel for private (i, j, tmp_diff, min_diff) \
-        shared(ctr_ctr_dists, centers, num_cols)
-    for (i = 0; i < K; i++) {
-      for (j = 0; j < K; j++) {
-        vector_sub(tmp_diff, centers[i], centers[j], num_cols);
-        ctr_ctr_dists[i * K + j] = vector_L2_norm(tmp_diff, num_cols);
-
-        if (ctr_ctr_dists[i * K + j] < min_diff) {
-          min_diff = ctr_ctr_dists[i * K + j];
-        }
-      }
-      s[i] = min_diff / 2;
+      cout << "\nError: changes memcpy error with code " << errCode << endl;
     }
 
     // #################################
     // Assign points to cluster centers
     // #################################
     // TODO: transfer data, implement and run assign_points kernel, time
-
+    // Assign points to cluster centers
+    ctr_ctr_dist_calc<<<totalBlocks, BLOCKSIZE>>>(dev_K, dev_num_cols, dev_ctr_ctr_dists, dev_centers, dev_s);
+    cudaDeviceSynchronize();
+    elkan<<<totalBlocks, BLOCKSIZE>>>(dev_num_rows, dev_num_cols, dev_l_bounds, dev_u_bounds,
+                                      dev_clusterings, dev_ctr_ctr_dists, dev_centers, dev_data_matrix,
+                                      dev_changes, dev_K, dev_s);
+    cudaDeviceSynchronize();
 
     // ######################################################################
     // If we didn't change any cluster assignments, we've reached convergence
     // ######################################################################
-    errCode = cudaMemcpy(&changes, dev_changes, sizeof(bool), cudaMemcpyHostToDevice);
+    errCode = cudaMemcpy(&changes, dev_changes, sizeof(bool), cudaMemcpyDeviceToHost);
     if (errCode != cudaSuccess) {
-      cout << "\nError: changes memcpy error with code " << errCode << endl;
+      cout << "\nError: getting changes from GPU error with code " << errCode << endl;
     }
 
     if (!changes) {
@@ -301,10 +351,6 @@ int main(int argc, char *argv[]) {
     }
 
     num_iterations++;
-
-    // TODO: is this lil guy in the right place?
-    // Capture current centers for later re-use
-    memcpy(prev_centers, centers, num_cols * K)
 
     // #######################################
     // Find cluster means and reassign centers
@@ -319,66 +365,46 @@ int main(int argc, char *argv[]) {
       cout << "\nError: memsetting cluster means error with code " << errCode << endl;
     }
 
-    kernel_start = omp_get_wtime();
+    errCode = cudaMemcpy(dev_prev_centers, dev_centers, sizeof(double) * K * num_cols, cudaMemcpyDeviceToDevice);
+    if (errCode != cudaSuccess) {
+      cout << "\nError: centers to prev centers memcpy error with code " << errCode << endl;
+    }
+
     reassign<<<totalBlocks, BLOCKSIZE>>>(dev_num_rows, dev_num_cols, dev_clusterings, dev_cluster_means, dev_data_matrix, dev_elements_per_cluster);
     cudaDeviceSynchronize();
-    kernel_time += omp_get_wtime() - kernel_start;
-
-    t_transfer_start = omp_get_wtime();
-    errCode = cudaMemcpy(elements_per_cluster, dev_elements_per_cluster, sizeof(int) * K, cudaMemcpyDeviceToHost);
-    if (errCode != cudaSuccess) {
-      cout << "\nError: getting elements per cluster from GPU error with code " << errCode << endl;
-    }
-
-    errCode = cudaMemcpy(cluster_means, dev_cluster_means, sizeof(double) * num_cols * K, cudaMemcpyDeviceToHost);
-    if (errCode != cudaSuccess) {
-      cout << "\nError: getting cluster means from GPU error with code " << errCode << endl;
-    }
-    transfer_time += omp_get_wtime() - t_transfer_start;
-
-    t_cpu_start = omp_get_wtime();
-    for (int i = 0; i < K; i++) {
-      vector_elementwise_avg(cluster_means + i * num_cols, cluster_means + i * num_cols, elements_per_cluster[i], num_cols);
-    }
+    finishReassign<<<totalBlocks, BLOCKSIZE>>>(dev_num_cols, dev_K, dev_cluster_means, dev_elements_per_cluster);
+    cudaDeviceSynchronize();
 
     // Replace the old cluster means with the new using only three assignments.
-    double *temp = centers;
-    centers = cluster_means;
-    cluster_means = temp;
-    cpu_time += omp_get_wtime() - t_cpu_start;
+    double *temp = dev_centers;
+    dev_centers = dev_cluster_means;
+    dev_cluster_means = temp;
 
-    // ###########################################
-    // Compute centroid drift since last iteration
-    // ###########################################
-    #pragma omp parallel for private(this_ctr, tmp_diff) \
-            shared(centers, prev_centers, num_cols, drifts)
-    for (this_ctr = 0; this_ctr < K; this_ctr++) {
-      vector_sub(tmp_diff, centers[this_ctr], prev_centers[this_ctr], num_cols);
-      drifts[this_ctr] = vector_L2_norm(tmp_diff, num_cols);
-    }
-
-    // ###########################################
-    // Adjust bounds to account for centroid drift
-    // ###########################################
-    // TODO: transfer data, call adjust_bounds (below), time
-    // TODO: Please double-check the code in this guy!
+    calc_drifts<<<totalBlocks, BLOCKSIZE>>>(dev_K, dev_num_cols, dev_centers,
+                                            dev_prev_centers, dev_drifts);
+    cudaDeviceSynchronize();
+    adjust_bounds<<<totalBlocks, BLOCKSIZE>>>(dev_u_bounds, dev_l_bounds, dev_centers,
+                                              dev_prev_centers, dev_clusterings, dev_drifts,
+                                              dev_num_rows, dev_num_cols, dev_K);
+    cudaDeviceSynchronize();
   }
 
-  //  work on CPU
+  errCode = cudaMemcpy(centers, dev_centers, sizeof(double) * K * num_cols, cudaMemcpyDeviceToHost);
+  if (errCode != cudaSuccess) {
+    cout << "\nError: getting centers from GPU error with code " << errCode << endl;
+  }
+  double tend = omp_get_wtime();
+
   printf("\nFinal cluster centers:\n");
   for (i = 0; i < K; i++) {
     for (j = 0; j < num_cols; j++) {
-      printf("%f ", centers[i][j]);
+      printf("%f ", centers[i * num_cols + j]);
     }
     printf("\n");
   }
 
   printf("\nNum iterations: %d\n", num_iterations);
-  printf("Time taken for %d clusters: %f seconds\n", K, tend - tstart);
-
-  for (i = 0; i < num_rows; i++) {
-    free(data_matrix[i]);
-  }
+  printf("Time taken for %d clusters: %f seconds\n\n", K, tend - t_start);
 
   free(data_matrix);
   free(clusterings);
@@ -386,50 +412,202 @@ int main(int argc, char *argv[]) {
   exit(0);
 }
 
-/*
-Adjusts the upper and lower bounds to accomodate for centroid drift
-*/
-__global__ void adjust_bounds( double *dev_u_bounds, double *dev_l_bounds, double *dev_centers, 
-                               double *dev_prev_centers, int *dev_clustering, double *dev_drifts,
-                               int *dev_num_rows, int *dev_num_cols, int *dev_K){
-    unsigned int tid = threadIdx.x + blockIdx.x * blockDim.x;
-    if (tid >= *dev_num_rows) return;
 
-    double tmp_diff[*dev_num_cols];
-    vector_sub(tmp_diff, dev_centers[dev_clusterings[tid]], dev_prev_centers[dev_clusterings[tid]], *dev_num_cols);
-    dev_u_bounds[tid] += vector_L2_norm(tmp_diff, *dev_num_cols);
+__global__ void init_ubound(int *dev_num_rows, double *dev_u_bounds) {
+  unsigned int tid = threadIdx.x + blockIdx.x * blockDim.x;
 
-    for (int this_ctr = 0; this_ctr < *dev_K; this_ctr++) {
-      l_bounds[tid * (*dev_K) + this_ctr] -= drifts[this_ctr];
+  if (tid >= *dev_num_rows) {
+    return;
+  }
+
+  dev_u_bounds[tid] = INFINITY;
+}
+
+
+__global__ void ctr_ctr_dist_calc(int *dev_K, int *dev_num_cols, double *dev_ctr_ctr_dists,
+                                  double *dev_centers, double *dev_s) {
+  unsigned int tid = threadIdx.x + blockIdx.x * blockDim.x;
+
+  if (tid >= *dev_K) {
+    return;
+  }
+
+  double min_diff = INFINITY;
+  double vec_norm;
+  double temp;
+
+  int j;
+  for (int i = 0; i < *dev_K; i++) {
+    if (i == tid) {
+      dev_ctr_ctr_dists[tid * *dev_K + i] = 0;
+      continue;
+    }
+
+    vec_norm = 0;
+    for (j = 0; j < *dev_num_cols; j++) {
+      temp = dev_centers[tid * *dev_num_cols + j] -
+             dev_centers[i * *dev_num_cols + j];
+      vec_norm += temp * temp;
+    }
+    dev_ctr_ctr_dists[tid * *dev_K + i] = sqrt(vec_norm);
+
+    if (dev_ctr_ctr_dists[tid * *dev_K + i] < min_diff) {
+      min_diff = dev_ctr_ctr_dists[tid * *dev_K + i];
+    }
+  }
+
+  dev_s[tid] = min_diff / 2;
+}
+
+
+__global__ void elkan(int *dev_num_rows, int *dev_num_cols, double *dev_l_bounds,
+                      double *dev_u_bounds, int *dev_clusterings, double *dev_ctr_ctr_dists,
+                      double *dev_centers, double *dev_data_matrix, bool *dev_changes, int *dev_K,
+                      double *dev_s) {
+  unsigned int tid = threadIdx.x + blockIdx.x * blockDim.x;
+
+  if (tid >= *dev_num_rows) {
+    return;
+  }
+
+  double z;
+  bool ubound_not_tight;
+  double temp;
+  double vec_norm;
+  int i = 0;
+
+  if (dev_u_bounds[tid] > dev_s[dev_clusterings[tid]]) {
+    ubound_not_tight = true;
+
+    for(int this_ctr = 0; this_ctr < *dev_K; this_ctr++) {
+      z = max(dev_l_bounds[tid * *dev_K + this_ctr],
+              dev_ctr_ctr_dists[dev_clusterings[tid] * *dev_K + this_ctr] / 2);
+
+      if (this_ctr == dev_clusterings[tid] || dev_u_bounds[tid] <= z) {
+        continue;
+      }
+
+      if (ubound_not_tight) {
+        vec_norm = 0;
+        for (i = 0; i < *dev_num_cols; i++) {
+          temp = dev_data_matrix[tid * *dev_num_cols + i] -
+                 dev_centers[dev_clusterings[tid] * *dev_num_cols + i];
+          vec_norm += temp * temp;
+        }
+        dev_u_bounds[tid] = sqrt(vec_norm);
+        ubound_not_tight = false;
+
+        if (dev_u_bounds[tid] <= z) {
+          continue;
+        }
+      }
+
+      vec_norm = 0;
+      for (i = 0; i < *dev_num_cols; i++) {
+        temp = dev_data_matrix[tid * *dev_num_cols + i] -
+               dev_centers[this_ctr * *dev_num_cols + i];
+        vec_norm += temp * temp;
+      }
+      dev_l_bounds[tid * *dev_K + this_ctr] = sqrt(vec_norm);
+      if(dev_l_bounds[tid * *dev_K + this_ctr] < dev_u_bounds[tid]) {
+        // NOTE: There is an acceptable data race on changes. Threads only ever
+        // set it to true; lost updates are inconsequential. No need to slow
+        // things down for safety.
+        *dev_changes = true;
+        dev_clusterings[tid] = this_ctr;
+        dev_u_bounds[tid] = dev_l_bounds[tid * *dev_K + this_ctr];
+      }
     }
   }
 }
+
 
 /*
 Reassigns centroids to their new cluster means
 */
 __global__ void reassign(int *dev_num_rows, int *dev_num_cols, int *dev_clusterings, double *dev_cluster_means,
-  double *dev_data_matrix, int *dev_elements_per_cluster) {
-unsigned int tid = threadIdx.x + blockIdx.x * blockDim.x;
+                         double *dev_data_matrix, int *dev_elements_per_cluster) {
+  unsigned int tid = threadIdx.x + blockIdx.x * blockDim.x;
 
-if (tid >= *dev_num_rows) {
-return;
+  if (tid >= *dev_num_rows) {
+    return;
+  }
+
+  unsigned int cluster = dev_clusterings[tid];
+
+  for (unsigned int i = 0; i < *dev_num_cols; i++) {
+    atomicAdd(&dev_cluster_means[cluster * *dev_num_cols + i], dev_data_matrix[tid * *dev_num_cols + i]);
+  }
+
+  atomicAdd(&dev_elements_per_cluster[cluster], int(1));
 }
 
-unsigned int cluster = dev_clusterings[tid];
 
-for (unsigned int i = 0; i < *dev_num_cols; i++) {
-atomicAdd(&dev_cluster_means[cluster * *dev_num_cols + i], dev_data_matrix[tid * *dev_num_cols + i]);
+__global__ void finishReassign(int *dev_num_cols, int *dev_K, double *dev_cluster_means,
+                               int *dev_elements_per_cluster) {
+  unsigned int tid = threadIdx.x + blockIdx.x * blockDim.x;
+
+  if (tid >= *dev_K) {
+    return;
+  }
+
+  for (int i = 0; i < *dev_num_cols; i++) {
+    dev_cluster_means[tid * *dev_num_cols + i] /= dev_elements_per_cluster[tid];
+  }
 }
 
-atomicAdd(&dev_elements_per_cluster[cluster], int(1));
+
+__global__ void calc_drifts(int *dev_K, int *dev_num_cols, double *dev_centers,
+                            double *dev_prev_centers, double *dev_drifts) {
+  unsigned int tid = threadIdx.x + blockIdx.x * blockDim.x;
+
+  if (tid >= *dev_K) {
+    return;
+  }
+
+  double vec_norm = 0;
+  double temp;
+
+  for (int i = 0; i < *dev_num_cols; i++) {
+    temp = dev_centers[tid * *dev_num_cols + i] -
+           dev_prev_centers[tid * *dev_num_cols + i];
+    vec_norm += temp * temp;
+  }
+  dev_drifts[tid] = sqrt(vec_norm);
+}
+
+
+/*
+Adjusts the upper and lower bounds to accomodate for centroid drift
+*/
+__global__ void adjust_bounds(double *dev_u_bounds, double *dev_l_bounds, double *dev_centers,
+                              double *dev_prev_centers, int *dev_clusterings, double *dev_drifts,
+                              int *dev_num_rows, int *dev_num_cols, int *dev_K) {
+  unsigned int tid = threadIdx.x + blockIdx.x * blockDim.x;
+
+  if (tid >= *dev_num_rows) {
+    return;
+  }
+
+  double temp;
+  double vec_norm = 0;
+  for (int i = 0; i < *dev_num_cols; i++) {
+    temp = dev_centers[dev_clusterings[tid] * *dev_num_cols + i] -
+           dev_prev_centers[dev_clusterings[tid] * *dev_num_cols + i];
+    vec_norm += temp * temp;
+  }
+  dev_u_bounds[tid] += sqrt(vec_norm);
+
+  for (int this_ctr = 0; this_ctr < *dev_K; this_ctr++) {
+    dev_l_bounds[tid * (*dev_K) + this_ctr] -= dev_drifts[this_ctr];
+  }
 }
 
 
 /*
 Warms up the GPU so that timings are accurate/consistent
 */
-void warmUpGPU(){
-cudaDeviceSynchronize();
-return;
+void warmUpGPU() {
+  cudaDeviceSynchronize();
+  return;
 }
