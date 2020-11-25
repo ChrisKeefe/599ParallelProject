@@ -147,6 +147,8 @@ int main(int argc, char *argv[]){
     // Assign points to cluster centers
     changes = false;
 
+    omp_set_num_threads(32);
+
     int center, observation, new_center, col;
     double idx_diff, current_diff, best_diff;
     #pragma omp parallel for \

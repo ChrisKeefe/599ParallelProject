@@ -168,6 +168,7 @@ int main(int argc, char *argv[]){
   while (1) {
     changes = false;
 
+    omp_set_num_threads(32);
     // Assign points to cluster centers
     int center, observation, arg_min;
     double min_norm, local_norm, diff[num_cols];

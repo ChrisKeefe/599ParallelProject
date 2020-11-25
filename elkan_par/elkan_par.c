@@ -181,6 +181,8 @@ int main(int argc, char *argv[]) {
 
   double tstart = omp_get_wtime();
 
+  omp_set_num_threads(32);
+
   #pragma omp parallel for private(this_pt) shared(num_rows, u_bounds)
   for (this_pt = 0; this_pt < num_rows; this_pt++) {
     u_bounds[this_pt] = INFINITY;
