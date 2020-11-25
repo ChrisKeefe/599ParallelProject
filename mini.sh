@@ -7,4 +7,5 @@
 # load a module, for example
 
 # run
-./lloyds_seq/lloyds_seq 5 "data/pairs.csv" "," 0 0 >> mini_thing.out
+./lloyds_par/lloyds_par 5 "data/pairs.csv" "," 0 0 >> mini_thing.out
+./lloyds_par/lloyds_par 5 "data/pairs.csv" "," 0 0 >> mini_thing2.out
