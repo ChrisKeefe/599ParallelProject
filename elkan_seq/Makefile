@@ -1,4 +1,4 @@
-CFLAGS = -Wall
+CFLAGS = -Wall -std=c99
 LFLAGS = -lm
 OPTFLAGS = -fopenmp
 
