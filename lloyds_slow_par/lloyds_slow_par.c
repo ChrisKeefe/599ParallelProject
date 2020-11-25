@@ -202,9 +202,9 @@ int main(int argc, char *argv[]){
 
     // Find cluster means and reassign centers
     int cluster_index, element, elements_in_cluster;
-    // #pragma omp parallel for \
-    //   private(cluster_index, element, elements_in_cluster) \
-    //   shared(num_rows, clusterings, data_matrix, K)
+    #pragma omp parallel for \
+      private(cluster_index, element, elements_in_cluster) \
+      shared(num_rows, clusterings, data_matrix, K)
     for (cluster_index = 0; cluster_index < K; cluster_index++) {
       elements_in_cluster = 0;
       vector_init(cluster_avg, num_rows);
