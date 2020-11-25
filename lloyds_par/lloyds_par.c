@@ -8,25 +8,29 @@
 #include "csvparser.h"
 
 void vector_init(double *a, int length) {
-  for (int i = 0; i < length; i++) {
+  int i;
+  for (i = 0; i < length; i++) {
     a[i] = 0;
   }
 }
 
 void vector_copy(double *dst, double *src, int length) {
-  for (int i = 0; i < length; i++) {
+  int i;
+  for (i = 0; i < length; i++) {
     dst[i] = src[i];
   }
 }
 
 void vector_add(double *dst, double *a, double *b, int length) {
-  for (int i = 0; i < length; i++) {
+  int i;
+  for (i = 0; i < length; i++) {
     dst[i] = a[i] + b[i];
   }
 }
 
 void vector_elementwise_avg(double *dst, double *a, int denominator, int length) {
-  for (int i = 0; i < length; i++) {
+  int i;
+  for (i = 0; i < length; i++) {
     dst[i] = a[i] / denominator;
   }
 }
@@ -77,7 +81,8 @@ int main(int argc, char *argv[]){
   reader = CsvParser_new(data_fp, delimiter, has_header_row);
 
   double **data_matrix = malloc(num_rows * sizeof(double *));
-  for (int i = 0; i < num_rows; i++) {
+  int i;
+  for (i = 0; i < num_rows; i++) {
     data_matrix[i] = malloc(num_cols * sizeof(double));
   }
 
@@ -85,7 +90,8 @@ int main(int argc, char *argv[]){
   while ((row = CsvParser_getRow(reader))){
     const char **row_fields = CsvParser_getFields(row);
 
-    for (int col_index = 0; col_index < num_cols; col_index++) {
+    int col_index;
+    for (col_index = 0; col_index < num_cols; col_index++) {
       data_matrix[row_index][col_index] = atof(row_fields[col_index]);
     }
 
@@ -129,8 +135,9 @@ int main(int argc, char *argv[]){
   }
 
   printf("Initial cluster centers:\n");
-  for (int i = 0; i < K; i++) {
-    for (int j = 0; j < num_cols; j++) {
+  int i, j;
+  for (i = 0; i < K; i++) {
+    for (j = 0; j < num_cols; j++) {
       printf("%f ", centers[i][j]);
     }
     printf("\n");
@@ -212,8 +219,9 @@ int main(int argc, char *argv[]){
   double tend = omp_get_wtime();
 
   printf("\nFinal cluster centers:\n");
-  for (int i = 0; i < K; i++) {
-    for (int j = 0; j < num_cols; j++) {
+  int i, j;
+  for (i = 0; i < K; i++) {
+    for (j = 0; j < num_cols; j++) {
       printf("%f ", centers[i][j]);
     }
     printf("\n");
@@ -222,7 +230,8 @@ int main(int argc, char *argv[]){
   printf("\nNum iterations: %d\n", num_iterations);
   printf("Time taken for %d clusters: %f seconds\n", K, tend - tstart);
 
-  for (int i = 0; i < num_rows; i++) {
+  int i;
+  for (i = 0; i < num_rows; i++) {
     free(data_matrix[i]);
   }
 
