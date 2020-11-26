@@ -16,4 +16,4 @@ where:
 `contains_header` is 1 if your data contains a header row, 0 if not
 `drop_labels` is 1 if the last column of your data contains labels, 0 if not (labels must be dropped - only numerical data is allowed)
 
-## Further documentation pending future development
+### Further documentation pending future development
